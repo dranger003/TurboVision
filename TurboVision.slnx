@@ -4,8 +4,11 @@
 	</Folder>
 	<Folder Name="/Solution Items/Documentation/">
 		<File Path="Documentation/CODING_STYLE.md" />
-		<File Path="Documentation/IMPLEMENTATION_PLAN.md" />
-		<File Path="Documentation/IMPLEMENTATION_REFERENCE.md" />
+		<File Path="Documentation/IMPLEMENTATION_PHASES.md" />
+		<File Path="Documentation/IMPLEMENTATION_STATUS.md" />
+	</Folder>
+	<Folder Name="/Examples/">
+		<Project Path="Examples/Hello/Hello.csproj" />
 	</Folder>
 	<Project Path="TurboVision.Tests/TurboVision.Tests.csproj" Id="e5c54b5b-e661-4b02-8b9c-055821b8103a" />
 	<Project Path="TurboVision/TurboVision.csproj" />

@@ -16,3 +16,4 @@ This project is a work in progress C# 14 / .NET 10 port of [magiblot/tvision](ht
 - Consult the upstream source in `Reference/tvision/` for original source code to port
 - Follow `Documentation/CODING_STYLE.md` for code style conventions
 - No external dependencies (other than Microsoft nugets) unless otherwise noted
+- Follow `Documentation/IMPLEMENTATION_STATUS.md` for current state summary and next steps
