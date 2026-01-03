@@ -600,8 +600,40 @@ public class TView : TObject
         return null;
     }
 
-    public virtual TColorAttr MapColor(byte color)
+    public virtual TColorAttr MapColor(byte index)
     {
+        var p = GetPalette();
+        byte color;
+
+        if (p != null && p[0] != 0)
+        {
+            // If palette has entries and index is within range
+            if (index > 0 && index <= (byte)p[0])
+            {
+                color = (byte)p[index];
+            }
+            else
+            {
+                return new TColorAttr(ErrorAttr);
+            }
+        }
+        else
+        {
+            // No palette - pass through index unchanged
+            color = index;
+        }
+
+        if (color == 0)
+        {
+            return new TColorAttr(ErrorAttr);
+        }
+
+        // Propagate to owner for further lookup
+        if (Owner != null)
+        {
+            return Owner.MapColor(color);
+        }
+
         return new TColorAttr(color);
     }
 
