@@ -31,7 +31,15 @@ public class TProgram : TGroup
         State = StateFlags.sfVisible | StateFlags.sfSelected | StateFlags.sfFocused |
                 StateFlags.sfModal | StateFlags.sfExposed;
 
+        // Disable buffering at program level - we draw directly to screen
+        Options &= unchecked((ushort)~OptionFlags.ofBuffered);
+
         InitScreen();
+
+        // After InitScreen, screen dimensions may have changed. Update our bounds and clip.
+        var screenRect = new TRect(0, 0, TScreen.ScreenWidth, TScreen.ScreenHeight);
+        SetBounds(screenRect);
+        Clip = GetExtent();
 
         var r = GetExtent();
 
@@ -90,23 +98,29 @@ public class TProgram : TGroup
         {
             ev = _pending;
             _pending.What = EventConstants.evNothing;
-            return;
         }
-
-        TEventQueue.GetKeyEvent(ref ev);
-        if (ev.What != EventConstants.evNothing)
+        else
         {
-            return;
+            // Wait for events before polling (like upstream tvision)
+            TEventQueue.WaitForEvents(EventTimeoutMs);
+
+            TEventQueue.GetMouseEvent(ref ev);
+            if (ev.What == EventConstants.evNothing)
+            {
+                TEventQueue.GetKeyEvent(ref ev);
+                if (ev.What == EventConstants.evNothing)
+                {
+                    Idle();
+                }
+            }
         }
 
-        TEventQueue.GetMouseEvent(ref ev);
-        if (ev.What != EventConstants.evNothing)
+        // Handle screen resize events
+        if (ev.What == EventConstants.evCommand && ev.Message.Command == CommandConstants.cmScreenChanged)
         {
-            return;
+            SetScreenMode(TDisplay.smUpdate);
+            ClearEvent(ref ev);
         }
-
-        // No events, call idle
-        Idle();
     }
 
     public override TPalette? GetPalette()
@@ -172,6 +186,9 @@ public class TProgram : TGroup
 
     public virtual void Run()
     {
+        // Clear screen and trigger initial draw
+        TScreen.ClearScreen();
+        Redraw();
         Execute();
     }
 
@@ -188,7 +205,12 @@ public class TProgram : TGroup
     public void SetScreenMode(ushort mode)
     {
         TScreen.SetVideoMode(mode);
-        // TODO: Resize views
+        InitScreen();
+        var r = new TRect(0, 0, TScreen.ScreenWidth, TScreen.ScreenHeight);
+        ChangeBounds(r);
+        SetState(StateFlags.sfExposed, false);
+        SetState(StateFlags.sfExposed, true);
+        Redraw();
     }
 
     public TView? ValidView(TView? p)

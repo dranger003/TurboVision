@@ -18,6 +18,9 @@ public class TDeskTop : TGroup
     {
         GrowMode = GrowFlags.gfGrowHiX | GrowFlags.gfGrowHiY;
 
+        // Disable buffering - draw directly to screen
+        Options &= unchecked((ushort)~OptionFlags.ofBuffered);
+
         Background = InitBackground(new TRect(0, 0, bounds.B.X - bounds.A.X, bounds.B.Y - bounds.A.Y));
         if (Background != null)
         {

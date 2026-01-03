@@ -47,7 +47,14 @@ public static class TScreen
     public static void SetVideoMode(ushort mode)
     {
         ScreenMode = mode;
-        // TODO: Implement mode switching
+
+        // If smUpdate is specified, refresh screen dimensions from driver
+        if ((mode & TDisplay.smUpdate) != 0 && _driver != null)
+        {
+            ScreenWidth = (ushort)_driver.Cols;
+            ScreenHeight = (ushort)_driver.Rows;
+            _screenBuffer = new TScreenCell[ScreenWidth * ScreenHeight];
+        }
     }
 
     /// <summary>
