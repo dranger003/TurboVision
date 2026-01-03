@@ -1,0 +1,14 @@
+{
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(cat:*)",
+      "Bash(git:*)"
+    ]
+  },
+  "outputStyle": "default"
+}
