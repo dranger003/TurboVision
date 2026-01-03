@@ -1,4 +1,5 @@
 using TurboVision.Core;
+using TurboVision.Platform;
 
 namespace TurboVision.Views;
 
@@ -384,7 +385,72 @@ public class TView : TObject
     // Writing to screen
     public void WriteBuf(int x, int y, int w, int h, ReadOnlySpan<TScreenCell> buf)
     {
-        // TODO: Implement
+        // Get the clipping rectangle for this view
+        var clip = GetClipRect();
+        if (w <= 0 || h <= 0)
+        {
+            return;
+        }
+
+        // Convert local coordinates to global
+        var globalOrigin = MakeGlobal(new TPoint(x, y));
+
+        // Clip against the view's clip rectangle
+        int srcX = 0;
+        int srcY = 0;
+        int dstX = globalOrigin.X;
+        int dstY = globalOrigin.Y;
+        int clipW = w;
+        int clipH = h;
+
+        // Left clipping
+        if (x < clip.A.X)
+        {
+            srcX = clip.A.X - x;
+            dstX = MakeGlobal(new TPoint(clip.A.X, 0)).X;
+            clipW -= srcX;
+        }
+
+        // Top clipping
+        if (y < clip.A.Y)
+        {
+            srcY = clip.A.Y - y;
+            dstY = MakeGlobal(new TPoint(0, clip.A.Y)).Y;
+            clipH -= srcY;
+        }
+
+        // Right clipping
+        if (x + w > clip.B.X)
+        {
+            clipW = clip.B.X - x - srcX;
+        }
+
+        // Bottom clipping
+        if (y + h > clip.B.Y)
+        {
+            clipH = clip.B.Y - y - srcY;
+        }
+
+        if (clipW <= 0 || clipH <= 0)
+        {
+            return;
+        }
+
+        var driver = TScreen.Driver;
+        if (driver == null)
+        {
+            return;
+        }
+
+        // Write each clipped line
+        for (int row = 0; row < clipH; row++)
+        {
+            int srcOffset = (srcY + row) * w + srcX;
+            if (srcOffset + clipW <= buf.Length)
+            {
+                driver.WriteBuffer(dstX, dstY + row, clipW, 1, buf.Slice(srcOffset, clipW));
+            }
+        }
     }
 
     public void WriteBuf(int x, int y, int w, int h, TDrawBuffer buf)
@@ -394,22 +460,48 @@ public class TView : TObject
 
     public void WriteChar(int x, int y, char c, byte color, int count)
     {
-        // TODO: Implement
+        if (count <= 0)
+        {
+            return;
+        }
+
+        var attr = MapColor(color);
+        Span<TScreenCell> cells = stackalloc TScreenCell[count];
+        for (int i = 0; i < count; i++)
+        {
+            cells[i] = new TScreenCell(c, attr);
+        }
+        WriteBuf(x, y, count, 1, cells);
     }
 
     public void WriteStr(int x, int y, string str, byte color)
     {
-        // TODO: Implement
+        if (string.IsNullOrEmpty(str))
+        {
+            return;
+        }
+
+        var attr = MapColor(color);
+        Span<TScreenCell> cells = stackalloc TScreenCell[str.Length];
+        for (int i = 0; i < str.Length; i++)
+        {
+            cells[i] = new TScreenCell(str[i], attr);
+        }
+        WriteBuf(x, y, str.Length, 1, cells);
     }
 
     public void WriteLine(int x, int y, int w, int h, TDrawBuffer buf)
     {
-        // TODO: Implement
+        WriteLine(x, y, w, h, buf.Data);
     }
 
     public void WriteLine(int x, int y, int w, int h, ReadOnlySpan<TScreenCell> buf)
     {
-        // TODO: Implement
+        // WriteLine writes the same buffer to multiple lines
+        for (int row = 0; row < h; row++)
+        {
+            WriteBuf(x, y + row, w, 1, buf.Slice(0, Math.Min(w, buf.Length)));
+        }
     }
 
     // Commands
