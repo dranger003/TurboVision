@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using TurboVision.Core;
 using TurboVision.Platform;
 using TurboVision.Views;
@@ -9,10 +10,24 @@ namespace TurboVision.Application;
 /// </summary>
 public class TApplication : TProgram
 {
+    private static Win32ConsoleDriver? _driver;
+
     public TApplication() : base()
     {
-        // Initialize platform
-        // TODO: Create and initialize platform drivers
+        // Platform driver is initialized in InitScreen() which is called by TProgram
+    }
+
+    public override void InitScreen()
+    {
+        base.InitScreen();
+
+        // Create platform driver (Windows only for now)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && _driver == null)
+        {
+            _driver = new Win32ConsoleDriver();
+            TScreen.Initialize(_driver);
+            TEventQueue.Initialize(_driver);
+        }
     }
 
     public override void Suspend()
@@ -84,5 +99,12 @@ public class TApplication : TProgram
                     break;
             }
         }
+    }
+
+    public override void ShutDown()
+    {
+        base.ShutDown();
+        _driver?.Dispose();
+        _driver = null;
     }
 }
