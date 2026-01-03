@@ -8,11 +8,11 @@
 | Event System          | ✅ Complete | TEvent, key/command constants, event structures |
 | Platform Interfaces   | ✅ Defined  | IScreenDriver, IEventSource interfaces          |
 | Win32 Console Driver  | ✅ Complete | Win32ConsoleDriver with P/Invoke (WriteConsoleOutput, ReadConsoleInput, etc.) |
-| View Hierarchy        | ✅ Stubbed  | TView, TGroup with WriteBuf/WriteChar/WriteStr implemented |
-| Application Framework | ✅ Stubbed  | TProgram, TApplication, TDeskTop                |
+| View Hierarchy        | ✅ Working  | TView, TGroup with WriteBuf/WriteChar/WriteStr implemented |
+| Application Framework | ✅ Working  | TProgram, TApplication, TDeskTop with event loop |
 | Menu Classes          | ✅ Stubbed  | TMenuItem, TSubMenu, TMenuBar, TMenu            |
 
-The project builds cleanly. The Hello example application is ready to run.
+The project builds cleanly. The Hello example application runs with basic functionality.
 
 **Hello App Milestone - READY**
 
