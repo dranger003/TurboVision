@@ -81,10 +81,37 @@ The TKey struct now implements full normalization matching the upstream C++ beha
 - Modifier normalization using BIOS-style constants (kbCtrlShift = 0x0004, kbAltShift = 0x0008)
 - Special key handling (kbShiftTab → kbTab + kbShift, kbCtrlTab → kbTab + kbCtrlShift, etc.)
 
+**Current Issues**
+
+Root Cause: Status Bar Not Implemented
+
+Location: TurboVision/Application/TProgram.cs - InitStatusLine() returns null
+
+---
+Keyboard Input Analysis
+
+The keyboard input chain appears to be correctly wired:
+- Win32ConsoleDriver.ProcessKeyEvent() reads and converts Windows console events
+- Events are queued via TEventQueue
+- TProgram.GetEvent() polls the queue
+- Events are dispatched via TGroup.Execute() → HandleEvent()
+
+The likely issue is that menu event handling is stubbed (TMenuView.Execute() returns 0, HandleEvent() has TODO placeholders), so keyboard events for menus aren't being processed.
+
+---
+Recommended Fixes (Priority Order)
+
+| Priority | Fix                                                     | Location                | Status      |
+|----------|---------------------------------------------------------|-------------------------|-------------|
+| 1        | Implement TStatusLine class and InitStatusLine()        | TProgram.cs             | TODO        |
+| 2        | Implement TMenuView.HandleEvent() for keyboard          | TMenuView.cs:77-93      | TODO        |
+
+
 # NEXT STEPS
 
-1. ✅ Implement remaining tests based on missing upstream tests (67 tests total)
-2. Test the Hello example to verify basic rendering
-3. Implement TMenuView.Execute() for menu interaction
-4. Add more complete TDeskTop/TWindow functionality
-5. Implement dialog controls (TButton, TInputLine, etc.)
+1. Fix current issues
+2. Test the Hello example to verify basic rendering and basic keyboard input
+3. Implement TStatusLine class and InitStatusLine()
+4. Implement TMenuView.Execute() for menu interaction
+5. Add more complete TDeskTop/TWindow functionality
+6. Implement dialog controls (TButton, TInputLine, etc.)
