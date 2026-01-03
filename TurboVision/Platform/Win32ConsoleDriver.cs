@@ -25,6 +25,74 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
     private DateTime _lastClickTime;
     private int _clickCount;
 
+    // Key code conversion tables (convert NT virtual scan codes to BIOS key codes)
+    // Combined shift mask for checking shift state
+    private const ushort kbShift = KeyConstants.kbRightShift | KeyConstants.kbLeftShift;
+
+    private static readonly ushort[] NormalCvt =
+    [
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0, 0x8500,
+        0x8600
+    ];
+
+    private static readonly ushort[] ShiftCvt =
+    [
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0, 0x0F00,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0,      0, 0x5400, 0x5500, 0x5600, 0x5700, 0x5800,
+        0x5900, 0x5A00, 0x5B00, 0x5C00, 0x5D00,      0,      0,      0,
+        0,      0,      0,      0,      0,      0,      0,      0,
+        0,      0, 0x0500, 0x0700,      0,      0,      0, 0x8700,
+        0x8800
+    ];
+
+    private static readonly ushort[] CtrlCvt =
+    [
+        0,      0, 0x0231, 0x0332, 0x0433, 0x0534, 0x0635, 0x0736,
+        0x0837, 0x0938, 0x0A39, 0x0B30,      0,      0,      0, 0x9400,
+        0x0011, 0x0017, 0x0005, 0x0012, 0x0014, 0x0019, 0x0015, 0x0009,
+        0x000F, 0x0010,      0,      0,      0,      0, 0x0001, 0x0013,
+        0x0004, 0x0006, 0x0007, 0x0008, 0x000A, 0x000B, 0x000C,      0,
+        0,      0,      0,      0, 0x001A, 0x0018, 0x0003, 0x0016,
+        0x0002, 0x000E, 0x000D,      0,      0, 0x352F,      0, 0x372A,
+        0,      0,      0, 0x5E00, 0x5F00, 0x6000, 0x6100, 0x6200,
+        0x6300, 0x6400, 0x6500, 0x6600, 0x6700,      0,      0, 0x7700,
+        0x8D00, 0x8400, 0x4A2D, 0x7300,      0, 0x7400, 0x4E2B, 0x7500,
+        0x9100, 0x7600, 0x0400, 0x0600,      0,      0,      0, 0x8900,
+        0x8A00
+    ];
+
+    private static readonly ushort[] AltCvt =
+    [
+        0, 0x0100, 0x7800, 0x7900, 0x7A00, 0x7B00, 0x7C00, 0x7D00,
+        0x7E00, 0x7F00, 0x8000, 0x8100, 0x8200, 0x8300, 0x0E00, 0xA500,
+        0x1000, 0x1100, 0x1200, 0x1300, 0x1400, 0x1500, 0x1600, 0x1700,
+        0x1800, 0x1900,      0,      0, 0xA600,      0, 0x1E00, 0x1F00,
+        0x2000, 0x2100, 0x2200, 0x2300, 0x2400, 0x2500, 0x2600,      0,
+        0,      0,      0,      0, 0x2C00, 0x2D00, 0x2E00, 0x2F00,
+        0x3000, 0x3100, 0x3200,      0,      0,      0,      0,      0,
+        0, 0x0200,      0, 0x6800, 0x6900, 0x6A00, 0x6B00, 0x6C00,
+        0x6D00, 0x6E00, 0x6F00, 0x7000, 0x7100,      0,      0, 0x9700,
+        0x9800, 0x9900, 0x8200, 0x9B00,      0, 0x9D00,      0, 0x9F00,
+        0xA000, 0xA100, 0xA200, 0xA300,      0,      0,      0, 0x8B00,
+        0x8C00
+    ];
+
     public int Cols
     {
         get { return _cols; }
@@ -266,7 +334,7 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
         ev = default;
         ev.What = EventConstants.evKeyDown;
 
-        // Build key code from scan code and character
+        // Build initial key code from scan code and character
         byte scanCode = (byte)keyEvent.wVirtualScanCode;
         byte charCode = (byte)keyEvent.UnicodeChar;
         ev.KeyDown.KeyCode = (ushort)((scanCode << 8) | charCode);
@@ -288,6 +356,55 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
             keyCode == 0x3800 || keyCode == 0x3A00 || keyCode == 0x5B00 || keyCode == 0x5C00)
         {
             return false;
+        }
+
+        // Handle AltGr (Ctrl+Alt combination)
+        bool hasCtrl = (ev.KeyDown.ControlKeyState & KeyConstants.kbCtrlShift) != 0;
+        bool hasAlt = (ev.KeyDown.ControlKeyState & KeyConstants.kbAltShift) != 0;
+        bool hasText = ev.KeyDown.GetText().Length > 0;
+
+        if (hasCtrl && hasAlt && !hasText)
+        {
+            // AltGr without text - discard the event
+            ev.KeyDown.KeyCode = KeyConstants.kbNoKey;
+        }
+        else if (hasCtrl && hasAlt && hasText)
+        {
+            // AltGr with text - strip the Ctrl+Alt modifiers
+            ev.KeyDown.ControlKeyState &= unchecked((ushort)~(KeyConstants.kbCtrlShift | KeyConstants.kbAltShift));
+        }
+        else if (scanCode < 89)
+        {
+            // Convert NT style virtual scan codes to PC BIOS codes
+            ushort convertedKeyCode = 0;
+
+            if (hasAlt && AltCvt[scanCode] != 0)
+            {
+                convertedKeyCode = AltCvt[scanCode];
+            }
+            else if (hasCtrl && CtrlCvt[scanCode] != 0)
+            {
+                convertedKeyCode = CtrlCvt[scanCode];
+            }
+            else if ((ev.KeyDown.ControlKeyState & kbShift) != 0 && ShiftCvt[scanCode] != 0)
+            {
+                convertedKeyCode = ShiftCvt[scanCode];
+            }
+            else if ((ev.KeyDown.ControlKeyState & (kbShift | KeyConstants.kbCtrlShift | KeyConstants.kbAltShift)) == 0 &&
+                     NormalCvt[scanCode] != 0)
+            {
+                convertedKeyCode = NormalCvt[scanCode];
+            }
+
+            if (convertedKeyCode != 0)
+            {
+                ev.KeyDown.KeyCode = convertedKeyCode;
+                // Clear text if char code is control character
+                if ((convertedKeyCode & 0xFF) < ' ')
+                {
+                    ev.KeyDown.SetText([]);
+                }
+            }
         }
 
         return ev.KeyDown.KeyCode != KeyConstants.kbNoKey || ev.KeyDown.GetText().Length > 0;
