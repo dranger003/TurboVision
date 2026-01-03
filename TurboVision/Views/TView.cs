@@ -377,6 +377,16 @@ public class TView : TObject
         return GetExtent().Contains(local);
     }
 
+    public bool MouseEvent(ref TEvent ev, ushort mask)
+    {
+        do
+        {
+            GetEvent(ref ev);
+        } while ((ev.What & (mask | EventConstants.evMouseUp)) == 0);
+
+        return ev.What != EventConstants.evMouseUp;
+    }
+
     public bool ContainsMouse(TEvent ev)
     {
         return (ev.What & EventConstants.evMouse) != 0 && MouseInView(ev.Mouse.Where);
