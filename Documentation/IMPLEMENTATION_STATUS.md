@@ -11,6 +11,7 @@
 | View Hierarchy        | ✅ Working  | TView, TGroup with WriteBuf/WriteChar/WriteStr implemented |
 | Application Framework | ✅ Working  | TProgram, TApplication, TDeskTop with event loop |
 | Menu Classes          | ✅ Stubbed  | TMenuItem, TSubMenu, TMenuBar, TMenu            |
+| Status Line           | ✅ Working  | TStatusLine, TStatusItem, TStatusDef with full event handling |
 
 The project builds cleanly. The Hello example application runs with basic functionality.
 
@@ -26,6 +27,15 @@ public class HelloApp : TApplication
             new TSubMenu("~F~ile", KeyConstants.kbAltF,
                 new TMenuItem("~Q~uit", CommandConstants.cmQuit, KeyConstants.kbAltX)));
     }
+
+    public override TStatusLine? InitStatusLine(TRect r)
+    {
+        var statusRect = new TRect(r.A.X, r.B.Y - 1, r.B.X, r.B.Y);
+        return new TStatusLine(statusRect,
+            new TStatusDef(0, 0xFFFF,
+                new TStatusItem("~Alt-X~ Exit", KeyConstants.kbAltX, CommandConstants.cmQuit,
+                new TStatusItem(null, KeyConstants.kbF10, CommandConstants.cmMenu))));
+    }
 }
 ```
 
@@ -37,6 +47,12 @@ public class HelloApp : TApplication
 2. ✅ TView.WriteBuf() and related methods - Connected to driver for rendering
 3. ✅ TSubMenu constructor - Now accepts TMenuItem varargs/builder pattern
 4. ✅ TProgram.InitMenuBar/InitStatusLine/InitDeskTop - Now virtual instance methods
+5. ✅ TStatusLine - Full implementation with:
+   - Keyboard shortcut handling (properly compares normalized TKey)
+   - Mouse tracking with visual feedback (selection highlighting)
+   - Help context-based item selection
+   - Dynamic update when help context changes
+6. ✅ TView.MouseEvent() - Added for tracking mouse movement in modal loops
 
 **Remaining Gaps (for full functionality):**
 
@@ -83,35 +99,29 @@ The TKey struct now implements full normalization matching the upstream C++ beha
 
 **Current Issues**
 
-Root Cause: Status Bar Not Implemented
-
-Location: TurboVision/Application/TProgram.cs - InitStatusLine() returns null
-
----
 Keyboard Input Analysis
 
-The keyboard input chain appears to be correctly wired:
+The keyboard input chain is correctly wired:
 - Win32ConsoleDriver.ProcessKeyEvent() reads and converts Windows console events
 - Events are queued via TEventQueue
 - TProgram.GetEvent() polls the queue
 - Events are dispatched via TGroup.Execute() → HandleEvent()
+- TStatusLine properly handles keyboard shortcuts (Alt-X exits the app)
 
-The likely issue is that menu event handling is stubbed (TMenuView.Execute() returns 0, HandleEvent() has TODO placeholders), so keyboard events for menus aren't being processed.
+The remaining issue is that menu event handling is stubbed (TMenuView.Execute() returns 0, HandleEvent() has TODO placeholders), so clicking on menus doesn't open them.
 
 ---
 Recommended Fixes (Priority Order)
 
 | Priority | Fix                                                     | Location                | Status      |
 |----------|---------------------------------------------------------|-------------------------|-------------|
-| 1        | Implement TStatusLine class and InitStatusLine()        | TProgram.cs             | TODO        |
-| 2        | Implement TMenuView.HandleEvent() for keyboard          | TMenuView.cs:77-93      | TODO        |
+| 1        | Implement TMenuView.HandleEvent() for keyboard          | TMenuView.cs            | TODO        |
+| 2        | Implement TMenuView.Execute() for menu interaction      | TMenuView.cs            | TODO        |
 
 
 # NEXT STEPS
 
-1. Fix current issues
-2. Test the Hello example to verify basic rendering and basic keyboard input
-3. Implement TStatusLine class and InitStatusLine()
-4. Implement TMenuView.Execute() for menu interaction
-5. Add more complete TDeskTop/TWindow functionality
-6. Implement dialog controls (TButton, TInputLine, etc.)
+1. Test the Hello example to verify basic rendering and keyboard input (Alt-X should quit)
+2. Implement TMenuView.Execute() for menu interaction
+3. Add more complete TDeskTop/TWindow functionality
+4. Implement dialog controls (TButton, TInputLine, etc.)
