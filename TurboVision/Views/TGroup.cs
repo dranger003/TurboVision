@@ -64,6 +64,20 @@ public class TGroup : TView
         }
 
         p.Owner = this;
+
+        // Propagate exposed/active/focused state from owner to the new view
+        if (p.GetState(StateFlags.sfVisible))
+        {
+            if (GetState(StateFlags.sfExposed))
+            {
+                p.SetState(StateFlags.sfExposed, true);
+            }
+            if (GetState(StateFlags.sfActive))
+            {
+                p.SetState(StateFlags.sfActive, true);
+            }
+        }
+
         p.Awaken();
 
         if ((p.Options & OptionFlags.ofSelectable) != 0)
@@ -288,6 +302,14 @@ public class TGroup : TView
         if (Buffer == null)
         {
             GetBuffer();
+            if (Buffer != null)
+            {
+                // Buffer was just created, populate it by redrawing children
+                // Use direct increment/decrement to avoid triggering DrawView via Unlock
+                LockFlag++;
+                Redraw();
+                if (LockFlag > 0) LockFlag--;
+            }
         }
         if (Buffer != null)
         {
@@ -295,7 +317,11 @@ public class TGroup : TView
         }
         else
         {
+            // No buffer, draw directly
+            var saveClip = Clip;
+            Clip = GetClipRect();
             Redraw();
+            Clip = saveClip;
         }
     }
 
