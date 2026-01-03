@@ -11,11 +11,13 @@ public class TMenuBar : TMenuView
     public TMenuBar(TRect bounds, TMenu? menu) : base(bounds, menu)
     {
         GrowMode = GrowFlags.gfGrowHiX;
+        Options |= OptionFlags.ofPreProcess;
     }
 
     public TMenuBar(TRect bounds, TSubMenu menu) : base(bounds, new TMenu(menu))
     {
         GrowMode = GrowFlags.gfGrowHiX;
+        Options |= OptionFlags.ofPreProcess;
     }
 
     public override void Draw()
