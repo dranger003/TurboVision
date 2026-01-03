@@ -38,36 +38,57 @@ public class TStatusLine : TView
     {
         base.HandleEvent(ref ev);
 
-        if (ev.What == EventConstants.evMouseDown)
+        switch (ev.What)
         {
-            var item = ItemMouseIsIn(ev.Mouse.Where);
-            if (item != null)
-            {
-                // TODO: Execute item command
-                ClearEvent(ref ev);
-            }
-        }
-        else if (ev.What == EventConstants.evKeyDown)
-        {
-            var item = Items;
-            while (item != null)
-            {
-                if (item.KeyCode.KeyCode == ev.KeyDown.KeyCode)
+            case EventConstants.evMouseDown:
                 {
-                    var cmd = TEvent.Command(item.Command);
-                    PutEvent(cmd);
+                    TStatusItem? selected = null;
+                    do
+                    {
+                        var mouse = MakeLocal(ev.Mouse.Where);
+                        var newItem = ItemMouseIsIn(mouse);
+                        if (newItem != selected)
+                        {
+                            selected = newItem;
+                            DrawSelect(selected);
+                        }
+                    } while (MouseEvent(ref ev, EventConstants.evMouseMove));
+
+                    if (selected != null && CommandEnabled(selected.Command))
+                    {
+                        ev.What = EventConstants.evCommand;
+                        ev.Message.Command = selected.Command;
+                        ev.Message.InfoPtr = 0;
+                        PutEvent(ev);
+                    }
                     ClearEvent(ref ev);
-                    break;
+                    DrawView();
                 }
-                item = item.Next;
-            }
-        }
-        else if (ev.What == EventConstants.evBroadcast)
-        {
-            if (ev.Message.Command == CommandConstants.cmCommandSetChanged)
-            {
-                Update();
-            }
+                break;
+
+            case EventConstants.evKeyDown:
+                if (ev.KeyDown.KeyCode != KeyConstants.kbNoKey)
+                {
+                    var eventKey = ev.KeyDown.ToKey();
+                    for (var item = Items; item != null; item = item.Next)
+                    {
+                        if (eventKey == item.KeyCode && CommandEnabled(item.Command))
+                        {
+                            ev.What = EventConstants.evCommand;
+                            ev.Message.Command = item.Command;
+                            ev.Message.InfoPtr = 0;
+                            return;
+                        }
+                    }
+                }
+                break;
+
+            case EventConstants.evBroadcast:
+                if (ev.Message.Command == CommandConstants.cmCommandSetChanged)
+                {
+                    DrawView();
+                }
+                break;
         }
     }
 
@@ -78,8 +99,14 @@ public class TStatusLine : TView
 
     public void Update()
     {
-        FindItems();
-        DrawView();
+        var topView = TopView();
+        ushort h = topView != null ? topView.GetHelpCtx() : HelpContexts.hcNoContext;
+        if (HelpCtx != h)
+        {
+            HelpCtx = h;
+            FindItems();
+            DrawView();
+        }
     }
 
     private void DrawSelect(TStatusItem? selected)
@@ -122,9 +149,12 @@ public class TStatusLine : TView
 
     private void FindItems()
     {
-        // TODO: Find items for current help context
-        // For now, use first definition
-        Items = Defs?.Items;
+        var p = Defs;
+        while (p != null && (HelpCtx < p.Min || HelpCtx > p.Max))
+        {
+            p = p.Next;
+        }
+        Items = p?.Items;
     }
 
     private TStatusItem? ItemMouseIsIn(TPoint p)
