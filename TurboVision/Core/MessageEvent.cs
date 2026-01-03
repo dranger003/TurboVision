@@ -3,7 +3,7 @@ namespace TurboVision.Core;
 /// <summary>
 /// Represents a message/command event.
 /// </summary>
-public record struct MessageEvent
+public struct MessageEvent
 {
     public ushort Command { get; set; }
     public nint InfoPtr { get; set; }

@@ -290,7 +290,7 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
             return false;
         }
 
-        return ev.KeyDown.KeyCode != KeyConstants.kbNoKey || ev.KeyDown.Text.Length > 0;
+        return ev.KeyDown.KeyCode != KeyConstants.kbNoKey || ev.KeyDown.GetText().Length > 0;
     }
 
     private bool ProcessMouseEvent(ref MOUSE_EVENT_RECORD mouseEvent, out TEvent ev)
