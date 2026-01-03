@@ -15,6 +15,29 @@ public class TSubMenu : TMenuItem
     }
 
     /// <summary>
+    /// Creates a submenu with the specified items.
+    /// </summary>
+    public TSubMenu(string? name, TKey keyCode, params TMenuItem[] items)
+        : base(name, keyCode, null, HelpContexts.hcNoContext, null)
+    {
+        SubMenu = new TMenu();
+        foreach (var item in items)
+        {
+            Add(item);
+        }
+    }
+
+    /// <summary>
+    /// Creates a submenu with a single item.
+    /// </summary>
+    public TSubMenu(string? name, TKey keyCode, TMenuItem item)
+        : base(name, keyCode, null, HelpContexts.hcNoContext, null)
+    {
+        SubMenu = new TMenu();
+        Add(item);
+    }
+
+    /// <summary>
     /// Adds a menu item to this submenu.
     /// </summary>
     public TSubMenu Add(TMenuItem item)
