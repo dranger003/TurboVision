@@ -207,17 +207,17 @@ public class TProgram : TGroup
         return p;
     }
 
-    public static TStatusLine? InitStatusLine(TRect r)
+    public virtual TStatusLine? InitStatusLine(TRect r)
     {
         return null; // Override in derived class
     }
 
-    public static TMenuBar? InitMenuBar(TRect r)
+    public virtual TMenuBar? InitMenuBar(TRect r)
     {
         return null; // Override in derived class
     }
 
-    public static TDeskTop? InitDeskTop(TRect r)
+    public virtual TDeskTop? InitDeskTop(TRect r)
     {
         return new TDeskTop(r);
     }
