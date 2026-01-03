@@ -48,19 +48,28 @@ public class HelloApp : TApplication
 
 **Testing**
 
+Test Files:
 1. TurboVision.Tests/TKeyTests.cs - 90 test cases for TKey normalization
 2. TurboVision.Tests/EndianTests.cs - 5 tests for event structure aliasing
+3. TurboVision.Tests/TRectTests.cs - 14 tests for TRect geometry operations
+4. TurboVision.Tests/TPointTests.cs - 8 tests for TPoint arithmetic operations
+5. TurboVision.Tests/TScreenCellTests.cs - 18 tests for TColorAttr, TScreenCell, TAttrPair
+6. TurboVision.Tests/TDrawBufferTests.cs - 22 tests for TDrawBuffer drawing operations
 
-Test Results
+Total: **67 tests** (all passing)
 
-| Test                                            | Status          | Notes                             |
-|-------------------------------------------------|-----------------|-----------------------------------|
-| AliasingInKeyDownEvent_ShouldWorkCorrectly      | ✅ Pass         | KeyCode → CharCode/ScanCode works |
-| AliasingInMessageEvent_ShouldWorkCorrectly      | ✅ Pass         | InfoPtr ↔ InfoInt works           |
-| TColorAttr_ShouldExtractForegroundAndBackground | ✅ Pass         | Color extraction works            |
-| TColorAttr_FromByte_ShouldWorkCorrectly         | ✅ Pass         | Byte conversion works             |
-| TColorAttr_ByteConversion_ShouldRoundTrip       | ✅ Pass         | Round-trip works                  |
-| TKey_ShouldConstructProperly                    | ✅ Pass         | All 90 normalization cases pass   |
+Test Categories:
+
+| Category              | Tests | Status      | Notes                                     |
+|-----------------------|-------|-------------|-------------------------------------------|
+| TKey Normalization    | 1     | ✅ Pass     | 90 sub-cases for key code normalization   |
+| Endian/Aliasing       | 5     | ✅ Pass     | KeyDownEvent, MessageEvent, TColorAttr    |
+| TRect Geometry        | 14    | ✅ Pass     | Move, Grow, Intersect, Union, Contains    |
+| TPoint Arithmetic     | 8     | ✅ Pass     | Addition, subtraction, equality           |
+| TColorAttr            | 10    | ✅ Pass     | Foreground/background, byte conversion    |
+| TScreenCell           | 5     | ✅ Pass     | Constructor, properties, SetCell          |
+| TAttrPair             | 3     | ✅ Pass     | Constructor, indexer, byte conversion     |
+| TDrawBuffer           | 22    | ✅ Pass     | MoveChar, MoveStr, MoveCStr, PutChar/Attr |
 
 TKey Normalization - COMPLETE
 
@@ -74,7 +83,7 @@ The TKey struct now implements full normalization matching the upstream C++ beha
 
 # NEXT STEPS
 
-1. Implement remaining tests based on missing upstream tests
+1. ✅ Implement remaining tests based on missing upstream tests (67 tests total)
 2. Test the Hello example to verify basic rendering
 3. Implement TMenuView.Execute() for menu interaction
 4. Add more complete TDeskTop/TWindow functionality
