@@ -42,6 +42,12 @@ public static class TEventQueue
             {
                 ev = sourceEvent;
             }
+            else if (sourceEvent.What != EventConstants.evNothing)
+            {
+                // Save non-mouse event as pending so it's not lost
+                _pendingEvent = sourceEvent;
+                _hasPendingEvent = true;
+            }
         }
     }
 
@@ -52,7 +58,8 @@ public static class TEventQueue
     {
         ev.What = EventConstants.evNothing;
 
-        if (_hasPendingEvent && (_pendingEvent.What & EventConstants.evKeyboard) != 0)
+        if (_hasPendingEvent && ((_pendingEvent.What & EventConstants.evKeyboard) != 0 ||
+                                  (_pendingEvent.What & EventConstants.evCommand) != 0))
         {
             ev = _pendingEvent;
             _hasPendingEvent = false;
@@ -61,9 +68,16 @@ public static class TEventQueue
 
         if (_eventSource?.GetEvent(out var sourceEvent) == true)
         {
-            if ((sourceEvent.What & EventConstants.evKeyboard) != 0)
+            if ((sourceEvent.What & EventConstants.evKeyboard) != 0 ||
+                (sourceEvent.What & EventConstants.evCommand) != 0)
             {
                 ev = sourceEvent;
+            }
+            else if (sourceEvent.What != EventConstants.evNothing)
+            {
+                // Save non-keyboard event as pending so it's not lost
+                _pendingEvent = sourceEvent;
+                _hasPendingEvent = true;
             }
         }
     }
