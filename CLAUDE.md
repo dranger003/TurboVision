@@ -10,6 +10,19 @@ This project is a work in progress C# 14 / .NET 10 port of [magiblot/tvision](ht
 - `Documentation/` — porting status and implementation notes
 - `TurboVision.Tests/` — testing of the main C# library
 
+## Common Commands
+
+```bash
+# Run tests
+dotnet test --project TurboVision.Tests/TurboVision.Tests.csproj
+
+# Build the solution
+dotnet build
+
+# Run the Hello example
+dotnet run --project Examples/Hello/Hello.csproj
+```
+
 ## Guidelines
 
 - Follow `Reference/SOURCE.md` for upstream source quick reference
