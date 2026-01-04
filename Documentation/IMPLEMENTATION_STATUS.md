@@ -1,341 +1,424 @@
 # Implementation Status
 
-This document tracks the porting progress of magiblot/tvision to C# 14 / .NET 10.
+This document tracks the comprehensive porting progress of magiblot/tvision to C# 14 / .NET 10.
 
-**Overall Progress: ~90% of core framework complete**
+**Overall Progress: ~45% of full upstream feature parity**
 
-> **Note:** The hierarchical WriteBuf/TVWrite system is implemented with the full TColorAttr/TColorDesired color model.
-> Recent fixes have resolved critical bugs in shadow rendering and button timer handling.
-
----
-
-## BUG FIX LOG
-
-### ✅ FIXED: Bug 1 - Shadow Missing Bottom Part (Menu/Dialog)
-**Status:** FIXED in TVWrite.cs
-**Root Cause:** Logic flaw in `TVWrite.L20()` - the bottom shadow region handling incorrectly used `goto L20End` before checking if we're in the shadow region and incrementing `_shadowDepth`.
-
-**Fix Applied:** Restructured L20 to use a boolean `applyShadowCheck` flag that properly tracks when the shadow depth check should be applied. Both the right-side shadow path and bottom shadow path now correctly fall through to the shadow depth increment logic.
+> **Note:** This assessment is based on a thorough file-by-file comparison between the upstream C++ source (170+ source files) and the C# port (~65 source files). While core rendering and event handling work, significant modules remain unimplemented.
 
 ---
 
-### ✅ FIXED: Bug 2 - Button Stays Pressed / Command Not Triggered (Spacebar)
-**Status:** FIXED in TButton.cs
-**Root Cause:** Timer comparison issue - `Equals(ev.Message.InfoPtr, (nint)_animationTimer)` compared boxed value types by reference instead of value.
+## Executive Summary
 
-**Fix Applied:** Changed to proper type pattern matching:
-```csharp
-if (_animationTimer != default &&
-    ev.Message.InfoPtr is TTimerId timerId &&
-    timerId == _animationTimer)
-```
-
----
-
-### ✅ FIXED: Bug 4 - Dialog Frame Close Button Wrong Color
-**Status:** FIXED in TFrame.cs
-**Root Cause:** The frame icons were missing the `~` tilde markers that indicate which portion should use the highlight color from `TAttrPair`.
-
-**Fix Applied:** Updated icon strings to match upstream format with tilde markers:
-```csharp
-// Upstream: closeIcon = "[~\xFE~]"
-public static string CloseIcon { get; set; } = "[~■~]";
-public static string ZoomIcon { get; set; } = "[~↑~]";
-public static string UnZoomIcon { get; set; } = "[~↓~]";
-public static string DragIcon { get; set; } = "~─┘~";
-public static string DragLeftIcon { get; set; } = "~└─~";
-```
+| Category | Status | Completion |
+|----------|--------|------------|
+| Core Primitives | Mostly Complete | 90% |
+| Event System | Partial | 60% |
+| Platform Layer | Partial | 50% |
+| View Hierarchy | Mostly Complete | 85% |
+| Application Framework | Mostly Complete | 80% |
+| Dialog Controls | Partial | 70% |
+| Menu System | Mostly Complete | 85% |
+| Editor Module | Not Started | 0% |
+| File/Directory Dialogs | Not Started | 0% |
+| Collections Framework | Not Started | 0% |
+| Validators | Not Started | 0% |
+| Message Box/Input Dialogs | Not Started | 0% |
+| Outline Views | Not Started | 0% |
+| Color Selector | Not Started | 0% |
+| Help System | Not Started | 0% |
+| Streaming/Serialization | Not Started | 0% |
 
 ---
 
-## REMAINING ISSUES (May Require Runtime Investigation)
+## Module Analysis
+
+### Phase 1: Core Primitives - 90% Complete
+
+Core types are well-implemented with minor gaps.
+
+| Class | File | Status | Missing |
+|-------|------|--------|---------|
+| TPoint | Core/TPoint.cs | Complete | Serialization operators |
+| TRect | Core/TRect.cs | Complete | Serialization operators |
+| TColorAttr | Core/TColorAttr.cs | Complete | - |
+| TColorDesired | Core/TColorDesired.cs | Complete | - |
+| TColorBIOS/RGB/XTerm | Core/TColorDesired.cs | Complete | - |
+| TScreenCell | Core/TScreenCell.cs | Complete | - |
+| TAttrPair | Core/TAttrPair.cs | Complete | - |
+| TDrawBuffer | Core/TDrawBuffer.cs | Complete | - |
+| TPalette | Core/TPalette.cs | Complete | - |
+| TCommandSet | Core/TCommandSet.cs | Complete | - |
+| TStringView | Core/TStringView.cs | Complete | - |
+
+---
+
+### Phase 2: Event System - 60% Complete
+
+Basic event structures exist but infrastructure is incomplete.
+
+| Component | Status | Missing Features |
+|-----------|--------|------------------|
+| TEvent struct | Partial | Queue infrastructure, event accumulation |
+| KeyDownEvent | Partial | UTF-16 surrogate pair handling, textEvent() |
+| MouseEvent | Partial | Full hardware mouse state |
+| MessageEvent | Complete | - |
+| TEventQueue | Partial | Multi-source multiplexing, EventWaiter architecture |
+| TMouse class | Missing | Hardware mouse integration, show/hide |
+| THWMouse class | Missing | Interrupt handler, button count |
+| EventWaiter | Missing | Event source multiplexing |
+
+**Critical Gaps:**
+- No `textEvent()` method for text accumulation (upstream: tview.cpp:855)
+- No UTF-16 surrogate pair handling for complex Unicode input
+- No EventWaiter/EventSource multiplexing architecture
+- No proper `getEvent(timeout)` overload
+
+---
+
+### Phase 3: Platform Layer - 50% Complete
+
+Windows driver exists but lacks sophisticated features.
+
+| Component | File | Status | Missing Features |
+|-----------|------|--------|------------------|
+| IScreenDriver | Platform/IScreenDriver.cs | Complete | - |
+| IEventSource | Platform/IEventSource.cs | Complete | - |
+| Win32ConsoleDriver | Platform/Win32ConsoleDriver.cs | Partial | See below |
+| TScreen | Platform/TScreen.cs | Partial | Mode detection, suspend/resume logic |
+| TDisplay | Platform/TDisplay.cs | Partial | Screen mode calculation |
+| TEventQueue | Platform/TEventQueue.cs | Partial | Event multiplexing |
+| THardwareInfo | Platform/THardwareInfo.cs | Minimal | Only platform detection |
+| TTimerQueue | Platform/TTimerQueue.cs | Partial | Not integrated with event loop |
+| TClipboard | Platform/TClipboard.cs | Minimal | No system clipboard |
+
+**Win32ConsoleDriver Missing Features:**
+- No color mode detection (legacy vs VT terminal)
+- No Wine detection and fallback
+- No font detection or bitmap font workarounds
+- No damage tracking (row-based dirty rectangles)
+- No FPS limiting mechanism
+- No wide character overlap handling
+- No sophisticated flush algorithm
+- No UTF-16 surrogate pair handling
+
+**Platform Singleton Missing:**
+- No unified Platform abstraction (upstream: platform.cpp)
+- No console adapter pattern
+- No console health check (isAlive)
+- No signal handling for suspend/resume
+- No display buffer manager
+
+**Timer Integration Missing:**
+- TTimerQueue exists but not wired to event loop
+- No automatic timer expiration events
+- ProcessTimers() must be called manually
+
+**Clipboard Missing:**
+- No Windows clipboard API integration
+- Only internal string storage
+- No async callback support
+
+---
+
+### Phase 4: View Hierarchy - 85% Complete
+
+Core view classes are well-implemented with specific gaps.
+
+| Class | File | Status | Missing Methods |
+|-------|------|--------|-----------------|
+| TObject | Views/TObject.cs | Complete | - |
+| TView | Views/TView.cs | Partial | `Exposed()`, `ResetCursor()`, `DrawCursor()`, `textEvent()`, streaming |
+| TGroup | Views/TGroup.cs | Partial | Streaming, helper callbacks |
+| TFrame | Views/TFrame.cs | Complete | Streaming only |
+| TScrollBar | Views/TScrollBar.cs | Complete | Streaming only |
+| TScroller | Views/TScroller.cs | Complete | Streaming only |
+| TListViewer | Views/TListViewer.cs | Complete | Streaming only |
+| TBackground | Views/TBackground.cs | Complete | Streaming only |
+| TVWrite | Views/TVWrite.cs | Complete | - |
+
+**TView Critical Missing:**
+1. **`Exposed()`** - Returns TODO (upstream: tvexposd.cpp)
+   - Complex algorithm checking if view is visible and not occluded
+   - Required for proper rendering optimization
+
+2. **`ResetCursor()`** - Returns TODO (upstream: tvcursor.cpp)
+   - Computes caret size based on state flags
+   - Checks if caret is covered by sibling views
+   - Required for text input cursor display
+
+3. **`DrawCursor()`** - Returns TODO
+   - Hardware cursor positioning
+
+4. **`textEvent()`** - Completely missing
+   - Accumulates consecutive keyboard events into text buffer
+   - Required for efficient text input handling
+
+---
+
+### Phase 5: Application Framework - 80% Complete
+
+Core application classes work but missing features.
+
+| Class | File | Status | Missing Features |
+|-------|------|--------|------------------|
+| TProgram | Application/TProgram.cs | Partial | See below |
+| TApplication | Application/TApplication.cs | Partial | System init, shell execution |
+| TDialog | Application/TDialog.cs | Partial | Multi-palette variants, streaming |
+| TWindow | Application/TWindow.cs | Partial | Mouse hide/show on resize, streaming |
+| TDeskTop | Application/TDeskTop.cs | Complete | Streaming only |
+
+**TProgram Missing:**
+- `eventWaitTimeout()` - Dynamic timeout calculation based on timer queue
+- StatusLine event prioritization in getEvent()
+- `lowMemory()` / `outOfMemory()` memory pressure handling
+- `initScreen()` is TODO - should set shadow size, markers, palette based on mode
+
+**TApplication Missing:**
+- History initialization (`initHistory()`, `doneHistory()`)
+- Shell execution (`cmDosShell` handler is TODO)
+- System error handling integration
+
+---
+
+### Phase 6: Dialog Controls - 70% Complete
+
+Basic dialogs work but missing validation and advanced features.
+
+| Class | File | Status | Missing Features |
+|-------|------|--------|------------------|
+| TButton | Dialogs/TButton.cs | 90% | Command validation, streaming |
+| TInputLine | Dialogs/TInputLine.cs | **60%** | **Validators**, state restoration, Unicode width |
+| TCluster | Dialogs/TCluster.cs | 95% | Help context, streaming |
+| TCheckBoxes | Dialogs/TCheckBoxes.cs | 95% | Streaming |
+| TRadioButtons | Dialogs/TRadioButtons.cs | 85% | `setData()` sync, streaming |
+| TLabel | Dialogs/TLabel.cs | 95% | Streaming |
+| TStaticText | Dialogs/TStaticText.cs | 85% | Unicode width handling, streaming |
+| TListBox | Dialogs/TListBox.cs | 90% | Streaming |
+| THistory | Dialogs/THistory.cs | 80% | Width calculation, streaming |
+| THistoryWindow | Dialogs/THistoryWindow.cs | 85% | Init pattern, streaming |
+| THistoryViewer | Dialogs/THistoryViewer.cs | 85% | Width calculation, streaming |
+| TSItem | Dialogs/TSItem.cs | Complete | - |
+| **TMultiCheckBoxes** | - | **0%** | **ENTIRE CLASS MISSING** |
+| **TParamText** | - | **0%** | **ENTIRE CLASS MISSING** |
+
+**TInputLine Critical Gaps:**
+- No validator system (`TValidator`, `setValidator()`, `checkValid()`)
+- No state save/restore for undo on invalid input
+- No `TText` integration for Unicode width handling
+- No `canUpdateCommands()` / `updateCommands()`
+- No Cut/Copy/Paste command state management
+- Missing Ctrl+Y clear line handler
+
+---
+
+### Phase 7: Menu System - 85% Complete
+
+Menu system works with some gaps.
+
+| Class | File | Status | Missing Features |
+|-------|------|--------|------------------|
+| TMenuItem | Menus/TMenuItem.cs | Complete | - |
+| TMenu | Menus/TMenu.cs | Complete | - |
+| TMenuView | Menus/TMenuView.cs | 90% | `findAltShortcut()`, streaming |
+| TMenuBar | Menus/TMenuBar.cs | 95% | Streaming |
+| TMenuBox | Menus/TMenuBox.cs | 90% | Border coords differ (x=1 vs x=2) |
+| TMenuPopup | Menus/TMenuPopup.cs | **50%** | `execute()`, `handleEvent()` are TODOs |
+| TStatusLine | Menus/TStatusLine.cs | **80%** | **Hint text display** is TODO |
+| TStatusItem | Menus/TStatusItem.cs | Complete | - |
+| TStatusDef | Menus/TStatusDef.cs | Complete | - |
+| TSubMenu | Menus/TSubMenu.cs | Complete | - |
+
+**TMenuPopup Critical Gaps:**
+- `Execute()` should set `menu.Default = null`
+- `HandleEvent()` missing Ctrl-key and Alt-key lookup
+
+**TStatusLine Critical Gap:**
+- Hint text display is TODO (upstream: tstatusl.cpp:108-115)
+
+**Missing Utilities:**
+- `popupMenu()` factory function (upstream: popupmnu.cpp)
+- `autoPlacePopup()` positioning helper
+
+---
+
+## Completely Missing Modules (0% Complete)
+
+### Editor Module
+Required files from upstream:
+- `teditor1.cpp`, `teditor2.cpp` → **TEditor** (gap buffer text editing)
+- `tmemo.cpp` → **TMemo** (in-memory editor)
+- `tfiledtr.cpp` → **TFileEditor** (file-based editor)
+- `teditwnd.cpp` → **TEditWindow** (window container)
+- `tindictr.cpp` → **TIndicator** (line:column display)
+- `textview.cpp` → **TTextDevice**, **TTerminal** (terminal emulation)
+
+**TEditor Features:**
+- Gap buffer algorithm for efficient text manipulation
+- Selection and clipboard operations
+- Undo/redo support
+- Search and replace
+- Auto-indent
+- EOL type detection (CRLF, LF, CR)
+- Encoding support
+
+---
+
+### File Dialogs Module
+Required files from upstream:
+- `tfildlg.cpp` → **TFileDialog** (file selection dialog)
+- `tfilecol.cpp` → **TFileCollection** (sorted file records)
+- `tfillist.cpp` → **TFileList** (directory listing)
+- `stddlg.cpp` → **TFileInputLine**, **TSortedListBox**, **TFileInfoPane**
+
+**Features:**
+- File/directory browsing
+- Wildcard pattern support
+- File info display (size, date, attributes)
+- Search-by-typing in file lists
+
+---
+
+### Directory Dialogs Module
+Required files from upstream:
+- `tchdrdlg.cpp` → **TChDirDialog** (change directory dialog)
+- `tdircoll.cpp` → **TDirCollection** (directory entries)
+- `tdirlist.cpp` → **TDirListBox** (directory tree view)
+
+**Helper Functions Missing:**
+- `driveValid()`, `isDir()`, `pathValid()`, `validFileName()`
+- `getCurDir()`, `isWild()`, `getHomeDir()`
+- Path utilities (fnsplit, fnmerge, squeeze)
+
+---
+
+### Collections Framework
+Required files from upstream:
+- `tcollect.cpp` → **TNSCollection**, **TCollection**
+- `tsortcol.cpp` → **TNSSortedCollection**, **TSortedCollection**
+- `tstrcoll.cpp` → **TStringCollection**
+- `tstrlist.cpp` → **TStrListMaker**, **TStringList**
+- `trescoll.cpp`, `tresfile.cpp` → **TResourceCollection**, **TResourceFile**
+
+**Features:**
+- Dynamic arrays with growth
+- Sorted collections with binary search
+- Callback-based iteration (forEach, firstThat, lastThat)
+- String collections with proper memory management
+
+---
+
+### Validators Module
+Required file: `tvalidat.cpp`
+
+**Classes:**
+- **TValidator** - Base validator with error display
+- **TPXPictureValidator** - Format picture validation (complex pattern matching)
+- **TFilterValidator** - Character set filtering
+- **TRangeValidator** - Numeric range validation
+- **TLookupValidator** - Abstract lookup validation
+- **TStringLookupValidator** - String set validation
+
+**TPXPictureValidator Pattern Syntax:**
+- `#` digit, `?` letter, `&` uppercase letter
+- `!` any to uppercase, `@` any character
+- `*` repetition, `{}` groups, `[]` optional
+- `;` escape character
+
+---
+
+### Message Box Module
+Required file: `msgbox.cpp`
+
+**Functions:**
+- `messageBox()` / `messageBoxRect()` - Display message with buttons
+- `inputBox()` / `inputBoxRect()` - Get text input from user
+
+**Features:**
+- Printf-style format strings
+- Configurable button combinations (Yes/No/OK/Cancel)
+- Message types (Error, Warning, Information, Confirmation)
+
+---
+
+### Outline Views Module
+Required file: `toutline.cpp`
+
+**Classes:**
+- **TNode** - Tree node structure
+- **TOutlineViewer** - Base outline view
+- **TOutline** - Concrete implementation
+
+**Features:**
+- Tree traversal with visitor pattern
+- Expansion/collapse control
+- Graphics generation (tree lines, indicators)
+
+---
+
+### Color Selector Module
+Required file: `colorsel.cpp`
+
+**Classes:**
+- **TColorItem**, **TColorGroup** - Palette organization
+- **TColorSelector** - 16-color grid selector
+- **TMonoSelector** - Monochrome attribute selector
+- **TColorDisplay** - Color preview
+- **TColorItemList**, **TColorGroupList** - Selection lists
+- **TColorDialog** - Complete color selection dialog
+
+---
+
+### Help System Module
+Required files: `help.cpp`, `helpbase.cpp`
+
+**Classes:**
+- **THelpTopic** - Help topic content
+- **THelpFile** - Help file management
+- **THelpViewer** - Help display
+- **THelpWindow** - Help window container
+
+---
+
+### Streaming/Serialization System
+Required files: All `s*.cpp` (46 files), `nm*.cpp` (42 files), `tobjstrm.cpp`
+
+**Classes:**
+- **TStreamable** - Base serialization interface
+- **ipstream**, **opstream** - Stream classes
+- **TStreamableClass** - Registration and factory
+
+**Impact:**
+- No save/load capability for UI configurations
+- No persistence of application state
+- No resource file support
+
+---
+
+### History Management
+Required file: `histlist.cpp`
+
+**Features:**
+- Global history storage
+- Circular buffer management
+- History ID-based retrieval
+- `initHistory()`, `doneHistory()`, `clearHistory()`
+
+---
+
+## Known Issues
 
 ### Bug 3: Dialog Labels Not Visible
 **Severity:** Medium
-**Status:** Code matches upstream - may be a rendering environment issue
-
-**Analysis:**
-The TLabel palette and color cascade code matches upstream exactly. The issue may be:
-1. Environment-specific rendering issues
-2. Font/character support
-3. Console color mode settings
-
-**Next Steps:** Test in different terminal environments to isolate the issue.
-
----
+**Status:** Unresolved - may be environment-specific
 
 ### Bug 5: Window Content Disappears on Titlebar Click
 **Severity:** Medium
-**Status:** Code matches upstream - may require runtime debugging
-
-**Analysis:**
-The TGroup.SetState() and buffer management code structure matches upstream. The Lock()/Unlock() mechanism is correctly implemented. If this issue persists, it may be due to:
-1. Timing issues with buffer updates
-2. Screen driver flushing behavior
-3. Console buffer mode settings
-
-**Next Steps:** Add runtime diagnostics to trace draw order during state changes.
-
----
+**Status:** Unresolved - may require runtime debugging
 
 ### Bug 6: Strong Flashing During Window Drag
 **Severity:** Low
-**Status:** Code matches upstream - may be inherent to unbuffered console drawing
-
-**Analysis:**
-The DragView implementation matches upstream. Some flashing is expected when dragging unbuffered views. This is less noticeable in native terminals compared to Windows Console.
-
-**Next Steps:** Consider double-buffering optimizations for Windows Console.
-
----
-
-## View Writing / Buffering Pipeline ✅ Complete
-
-The rendering layer implements the upstream hierarchical buffer system via the `TVWrite` class, matching the `tvwrite.cpp` architecture. All critical shadow rendering bugs have been fixed.
-
-### Current Status: ✅ Fully Working
-
-| Feature | Upstream | C# Port | Status |
-|---------|----------|---------|--------|
-| WriteBuf to screen | ✅ | ✅ | Working |
-| WriteBuf to parent buffer | ✅ | ✅ | Working |
-| Hierarchical buffer propagation | ✅ | ✅ | Working |
-| Shadow rendering (right side) | ✅ | ✅ | Working |
-| Shadow rendering (bottom) | ✅ | ✅ | FIXED - L20 restructured |
-| Clip-aware view occlusion | ✅ | ✅ | Working |
-| Lock/Unlock buffer management | ✅ | ✅ | Working (matches upstream) |
-| TGroup buffer allocation | ✅ | ✅ | Working |
-| TColorAttr full color model | ✅ | ✅ | Working |
-| Legacy ushort buffer support | ✅ | ❌ | Intentionally omitted |
-
-### Implementation Details
-
-The `TVWrite` class (`TurboVision/Views/TVWrite.cs`) implements the full hierarchical write system:
-- **L0**: Entry point - clips against view bounds, initializes shadow counter
-- **L10**: Owner propagation - converts to owner coordinates, clips against owner's clip rect
-- **L20**: View occlusion check - Z-order traversal, shadow detection, recursive splitting (**HAS BUG**)
-- **L30**: Recursive split - saves state, limits region, recurses for partial occlusion
-- **L40**: Buffer write + propagation - writes to owner's buffer, propagates up if unlocked
-- **L50**: Buffer copy - actual memory copy with shadow application, flushes to screen
-
-### L20 Shadow Implementation Details (FIXED)
-
-The L20 method now uses a cleaner boolean flag approach instead of goto statements:
-
-```csharp
-// Key fix: Both right-side shadow and bottom shadow paths
-// now properly set applyShadowCheck = true to fall through
-// to the shadow depth increment logic
-
-bool applyShadowCheck = false;
-
-// ... right-side shadow path sets applyShadowCheck = true
-// ... bottom shadow path sets applyShadowCheck = true
-
-// Shadow depth check - reached from both paths
-if (applyShadowCheck && _x < _tempPos)
-{
-    _shadowDepth++;
-    // ...
-}
-```
-
-This matches the upstream `do { } while (0)` idiom with `break` statements, converted to clean structured control flow.
-
----
-
-## Priority Status Summary
-
-### Priority 1: Hierarchical WriteBuf ✅ COMPLETE
-TVWrite class implements core hierarchical write system:
-- [x] L0-L50 structure matches upstream
-- [x] Buffer propagation works
-- [x] L20 bottom shadow region handling FIXED
-
-### Priority 2: Shadow Rendering ✅ COMPLETE
-Shadow rendering fully works:
-- [x] Right-side shadow rendering works
-- [x] Bottom shadow rendering FIXED
-- [x] ApplyShadow uses TColorDesired.ToBIOS(false) correctly
-- [x] slNoShadow style flag prevents double-shadowing
-
-### Priority 3: Re-enable Window Buffering ✅ COMPLETE
-TWindow now uses full buffering with hierarchical write support:
-- [x] TGroup constructor sets `Options |= ofBuffered`
-- [x] TWindow does NOT remove ofBuffered flag
-- [x] Buffer allocation, locking, and propagation work
-
-### Priority 4: TColorAttr Full Color Model ✅ COMPLETE
-Full upstream-compatible color system implemented:
-- [x] `TColorDesired` union type (BIOS/RGB/XTerm/Default)
-- [x] `TColorAttr` uses 64-bit storage with 27-bit fg/bg fields
-- [x] `TColorBIOS`, `TColorRGB`, `TColorXTerm` types
-- [x] Color conversion functions (RGBtoBIOS, XTermToBIOS, etc.)
-- [x] `ApplyShadow` uses `TColorDesired.ToBIOS()`
-- [x] `ReverseAttribute` handles default colors correctly
-
----
-
-## Verified Implementation Claims
-
-### Claim: "TVWrite L0-L50 matches upstream" - ✅ VERIFIED
-The overall structure matches. L0, L10, L20, L30, L40, L50 are all correctly implemented.
-L20 shadow logic has been fixed to properly handle both right-side and bottom shadows.
-
-### Claim: "TColorAttr 64-bit storage" - ✅ VERIFIED
-`TColorAttr.cs` uses `ulong _data` with correct bit packing:
-- Bits 0-9: Style (10 bits)
-- Bits 10-36: Foreground (27 bits)
-- Bits 37-63: Background (27 bits)
-
-### Claim: "TColorDesired union type" - ✅ VERIFIED
-`TColorDesired.cs` implements all color types:
-- ctDefault (0x0), ctBIOS (0x1), ctRGB (0x2), ctXTerm (0x3)
-- Proper `ToBIOS()` quantization for all types
-- Correct bitcast storage format
-
-### Claim: "TGroup buffer management matches upstream" - ✅ VERIFIED
-Buffer allocation, locking, and state change handling all match upstream exactly.
-Any remaining visual issues may be environment-specific (console driver behavior).
-
-### Claim: "Window buffering enabled" - ✅ VERIFIED
-`TWindow.cs` does not disable `ofBuffered`. Windows use buffering correctly.
-
----
-
-## Phase Summary
-
-| Phase | Component | Status | Completion |
-|-------|-----------|--------|------------|
-| 1 | Core Primitives | ✅ Complete | 100% (TColorAttr/TColorDesired done) |
-| 2 | Event System | ✅ Complete | 100% (Timer handling fixed) |
-| 3 | Platform Layer | ✅ Complete | 100% (Windows) |
-| 4 | View Hierarchy | ✅ Complete | 100% (Shadow rendering fixed) |
-| 5 | Application Framework | ✅ Complete | 100% |
-| 6 | Dialog Controls | ✅ Complete | 100% (TButton timer fixed, icons fixed) |
-| 7 | Menu System | ✅ Complete | 100% |
-| 8 | Editor Module | ❌ Not Started | 0% |
-
-**Build Status:** ✅ Clean
-**Test Status:** ✅ 88 tests passing
-**Hello Example:** ✅ Critical bugs fixed
-
----
-
-## Phase 1: Core Primitives ✅ Complete
-
-Core types implemented with test coverage.
-
-| Class | File | Status | Notes |
-|-------|------|--------|-------|
-| TPoint | Core/TPoint.cs | ✅ | 2D coordinates with operators |
-| TRect | Core/TRect.cs | ✅ | Rectangle geometry |
-| TColorAttr | Core/TColorAttr.cs | ✅ | 64-bit storage, full color model |
-| TColorDesired | Core/TColorDesired.cs | ✅ | BIOS/RGB/XTerm/Default support |
-| TColorBIOS | Core/TColorDesired.cs | ✅ | 4-bit BIOS color |
-| TColorRGB | Core/TColorDesired.cs | ✅ | 24-bit RGB color |
-| TColorXTerm | Core/TColorDesired.cs | ✅ | 8-bit XTerm palette |
-| ColorConversion | Core/TColorDesired.cs | ✅ | Full conversion utilities |
-| TScreenCell | Core/TScreenCell.cs | ✅ | Character + attribute pair |
-| TAttrPair | Core/TAttrPair.cs | ✅ | Normal/highlight attribute pairs |
-| TDrawBuffer | Core/TDrawBuffer.cs | ✅ | All buffer operations |
-| TPalette | Core/TPalette.cs | ✅ | Color palette wrapper |
-| TCommandSet | Core/TCommandSet.cs | ✅ | Command bitset |
-| TStringView | Core/TStringView.cs | ✅ | String utilities |
-
----
-
-## Phase 2: Event System ✅ Complete
-
-| Class | File | Status | Notes |
-|-------|------|--------|-------|
-| TEvent | Core/TEvent.cs | ✅ | Event structure |
-| KeyDownEvent | Core/KeyDownEvent.cs | ✅ | Keyboard events |
-| MouseEvent | Core/MouseEvent.cs | ✅ | Mouse events |
-| MessageEvent | Core/MessageEvent.cs | ✅ | Timer ID comparison fixed |
-| Timer System | — | ✅ | Timer ID matching works |
-
----
-
-## Phase 3: Platform Layer ✅ Complete (Windows)
-
-| Class | File | Status | Notes |
-|-------|------|--------|-------|
-| IScreenDriver | Platform/IScreenDriver.cs | ✅ | Screen rendering interface |
-| IEventSource | Platform/IEventSource.cs | ✅ | Input events interface |
-| Win32ConsoleDriver | Platform/Win32ConsoleDriver.cs | ✅ | Full P/Invoke implementation |
-| TScreen | Platform/TScreen.cs | ✅ | Static screen state |
-| TDisplay | Platform/TDisplay.cs | ✅ | Display capabilities |
-| TEventQueue | Platform/TEventQueue.cs | ✅ | Event polling |
-| THardwareInfo | Platform/THardwareInfo.cs | ✅ | Platform detection |
-
----
-
-## Phase 4: View Hierarchy ✅ Complete
-
-| Class | File | Status | Notes |
-|-------|------|--------|-------|
-| TView | Views/TView.cs | ✅ | Core view class |
-| TGroup | Views/TGroup.cs | ✅ | Buffer management matches upstream |
-| TVWrite | Views/TVWrite.cs | ✅ | L20 shadow logic FIXED |
-| TFrame | Views/TFrame.cs | ✅ | Icon markers FIXED |
-| TScrollBar | Views/TScrollBar.cs | ✅ | — |
-| TScroller | Views/TScroller.cs | ✅ | — |
-| TListViewer | Views/TListViewer.cs | ✅ | — |
-| TBackground | Views/TBackground.cs | ✅ | — |
-
----
-
-## Phase 5: Application Framework ✅ Complete
-
-| Class | File | Status | Notes |
-|-------|------|--------|-------|
-| TProgram | Application/TProgram.cs | ✅ | Event loop, screen buffer |
-| TApplication | Application/TApplication.cs | ✅ | Win32 driver init |
-| TDeskTop | Application/TDeskTop.cs | ✅ | Window management |
-| TDialog | Application/TDialog.cs | ✅ | Modal execution |
-| TWindow | Application/TWindow.cs | ✅ | Full buffering support |
-
----
-
-## Phase 6: Dialog Controls ✅ Complete
-
-| Class | File | Status | Notes |
-|-------|------|--------|-------|
-| TButton | Dialogs/TButton.cs | ✅ | Timer comparison FIXED |
-| TStaticText | Dialogs/TStaticText.cs | ✅ | — |
-| TLabel | Dialogs/TLabel.cs | ✅ | Palette cascade matches upstream |
-| TInputLine | Dialogs/TInputLine.cs | ✅ | — |
-| TCluster | Dialogs/TCluster.cs | ✅ | — |
-| TCheckBoxes | Dialogs/TCheckBoxes.cs | ✅ | — |
-| TRadioButtons | Dialogs/TRadioButtons.cs | ✅ | — |
-| TListBox | Dialogs/TListBox.cs | ✅ | — |
-| THistory | Dialogs/THistory.cs | ✅ | — |
-
----
-
-## Phase 7: Menu System ✅ Complete
-
-| Class | File | Status |
-|-------|------|--------|
-| TMenuItem | Menus/TMenuItem.cs | ✅ |
-| TMenu | Menus/TMenu.cs | ✅ |
-| TMenuView | Menus/TMenuView.cs | ✅ |
-| TMenuBar | Menus/TMenuBar.cs | ✅ |
-| TMenuBox | Menus/TMenuBox.cs | ✅ |
-| TStatusLine | Menus/TStatusLine.cs | ✅ |
-
----
-
-## Phase 8: Editor Module ❌ Not Started
-
-| Class | Status | Description |
-|-------|--------|-------------|
-| TIndicator | ❌ | Line/column display |
-| TEditor | ❌ | Core text editing |
-| TMemo | ❌ | In-memory editor |
-| TFileEditor | ❌ | File-based editor |
-| TEditWindow | ❌ | Window wrapper |
+**Status:** Expected with unbuffered console drawing
 
 ---
 
@@ -343,16 +426,16 @@ Core types implemented with test coverage.
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| TKey Normalization | 1 | ✅ |
-| Endian/Aliasing | 5 | ✅ |
-| TRect Geometry | 14 | ✅ |
-| TPoint Arithmetic | 8 | ✅ |
-| TColorAttr | 10 | ✅ |
-| TScreenCell | 5 | ✅ |
-| TAttrPair | 3 | ✅ |
-| TDrawBuffer | 27 | ✅ |
-| TStatusLine | 5 | ✅ |
-| TGroup/ExecView | 10 | ✅ |
+| TKey Normalization | 1 | Pass |
+| Endian/Aliasing | 5 | Pass |
+| TRect Geometry | 14 | Pass |
+| TPoint Arithmetic | 8 | Pass |
+| TColorAttr | 10 | Pass |
+| TScreenCell | 5 | Pass |
+| TAttrPair | 3 | Pass |
+| TDrawBuffer | 27 | Pass |
+| TStatusLine | 5 | Pass |
+| TGroup/ExecView | 10 | Pass |
 
 **Total: 88 tests (all passing)**
 
@@ -360,48 +443,108 @@ Core types implemented with test coverage.
 
 ## Prioritized Next Steps
 
-### ✅ COMPLETED: Critical Bug Fixes
-1. [x] **TVWrite.L20 shadow bug** - Bottom shadow handling restructured
-2. [x] **TButton timer comparison** - Fixed `InfoPtr` timer ID matching
-3. [x] **TFrame close button color** - Added ~ markers for icon highlighting
+### Priority 1: Critical Infrastructure (Required for Basic Applications)
+1. **Implement `Exposed()` method** - View rendering optimization
+2. **Implement `ResetCursor()` / `DrawCursor()`** - Text cursor display
+3. **Fix TMenuPopup.Execute() and HandleEvent()** - Popup menu functionality
+4. **Implement TStatusLine hint text** - Status bar completeness
+5. **Wire TTimerQueue to event loop** - Animation and timing support
 
-### Priority 1: Standard Dialogs
-- messageBox(), inputBox()
+### Priority 2: Standard Dialogs (Required for User Interaction)
+1. **Implement `messageBox()` and `inputBox()`** - Basic dialog utilities
+2. **Implement TValidator hierarchy** - Input validation
+3. **Integrate validators into TInputLine** - Form validation support
 
-### Priority 2: Editor Module
-- TEditor, TMemo, TFileEditor
+### Priority 3: File Operations (Required for File-Based Applications)
+1. **Implement TFileDialog** - File open/save dialogs
+2. **Implement TChDirDialog** - Directory navigation
+3. **Implement supporting classes** - TFileCollection, TFileList, TDirCollection, TDirListBox
 
-### Priority 3: File Dialogs
-- TFileDialog, TChDirDialog
+### Priority 4: Editor Module (Required for Text Editing Applications)
+1. **Implement TEditor** - Core text editing
+2. **Implement TMemo** - In-memory editing
+3. **Implement TFileEditor** - File-based editing
+4. **Implement TEditWindow** - Editor window
 
-### Priority 4: Advanced Features
-- Validators, Help system, Collections
+### Priority 5: Collections Framework (Required for Complex Data)
+1. **Implement TCollection/TNSCollection** - Dynamic collections
+2. **Implement TSortedCollection** - Sorted collections
+3. **Implement TStringCollection** - String storage
 
-### Priority 5: Cross-Platform
-- Linux driver (ncurses-based)
-- macOS support
+### Priority 6: Platform Completeness
+1. **Add screen capability detection** - Legacy console support
+2. **Add damage tracking to display** - Performance optimization
+3. **Implement system clipboard** - Cut/copy/paste with OS
+4. **Add UTF-16 surrogate handling** - Full Unicode support
+
+### Priority 7: Serialization (Required for Persistence)
+1. **Design C# serialization approach** - May differ from C++ streams
+2. **Implement TStreamable pattern** - Base interface
+3. **Add serialization to all view classes** - Full save/load support
+
+### Priority 8: Advanced Features
+1. **Implement TOutline** - Tree views
+2. **Implement TColorDialog** - Color selection
+3. **Implement Help system** - Context-sensitive help
+
+### Priority 9: Cross-Platform
+1. **Linux driver (ncurses-based)** - Linux/macOS support
+2. **ANSI terminal driver** - Generic Unix support
 
 ---
 
-## Additional Components Not Yet Ported
+## Upstream File Reference
 
-### File Dialogs
-- TFileInputLine, TFileList, TFileInfoPane
-- TFileDialog (Open/Save)
-- TDirCollection, TDirListBox
-- TChDirDialog
+### Source Files Not Yet Ported (by category)
 
-### Validators
-- TValidator, TPXPictureValidator, TFilterValidator
-- TRangeValidator, TLookupValidator
+**Editor (6 files):**
+teditor1.cpp, teditor2.cpp, tmemo.cpp, tfiledtr.cpp, teditwnd.cpp, tindictr.cpp
 
-### Collections
-- TCollection, TSortedCollection
-- TStringCollection, TFileCollection
+**Text Display (1 file):**
+textview.cpp
 
-### Help System
-- THelpFile, THelpTopic, THelpViewer
+**File Dialogs (4 files):**
+tfildlg.cpp, tfilecol.cpp, tfillist.cpp, stddlg.cpp
 
-### Utilities
-- messageBox(), inputBox() dialogs
-- Clipboard integration
+**Directory Dialogs (3 files):**
+tchdrdlg.cpp, tdircoll.cpp, tdirlist.cpp
+
+**Collections (5 files):**
+tcollect.cpp, tsortcol.cpp, tstrcoll.cpp, tstrlist.cpp, trescoll.cpp
+
+**Validators (1 file):**
+tvalidat.cpp
+
+**Message Box (1 file):**
+msgbox.cpp
+
+**Outline (1 file):**
+toutline.cpp
+
+**Color Selector (1 file):**
+colorsel.cpp
+
+**Help System (2 files):**
+help.cpp, helpbase.cpp
+
+**Streaming (88 files):**
+All s*.cpp and nm*.cpp files, tobjstrm.cpp
+
+**Miscellaneous (4 files):**
+histlist.cpp, misc.cpp, syserr.cpp, fmtstr.cpp
+
+**Platform (not directly ported - different architecture):**
+29 files in source/platform/
+
+---
+
+## Build Status
+
+**Build:** Clean
+**Tests:** 88 tests passing
+**Hello Example:** Runs with visual issues (bugs 3, 5, 6)
+
+---
+
+*Last updated: 2026-01-04*
+*Analysis based on comprehensive file-by-file comparison with upstream magiblot/tvision*
