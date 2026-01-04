@@ -448,12 +448,18 @@ public class TGroup : TView
         }
 
         var saveOptions = p.Options;
+        var saveOwner = p.Owner;
         var saveCurrent = Current;
         var saveCommands = new TCommandSet(CurCommandSet);
         var saveTopView = TopView();
 
-        Insert(p);
-        p.Options |= OptionFlags.ofTopSelect;
+        // Only insert if view wasn't already owned (not already in hierarchy)
+        if (saveOwner == null)
+        {
+            Insert(p);
+        }
+
+        p.Options &= unchecked((ushort)~OptionFlags.ofSelectable);
         p.SetState(StateFlags.sfModal, true);
 
         SetCurrent(p, SelectMode.enterSelect);
@@ -463,7 +469,14 @@ public class TGroup : TView
         SetCurrent(saveCurrent, SelectMode.leaveSelect);
         p.SetState(StateFlags.sfModal, false);
         p.Options = saveOptions;
-        Remove(p);
+
+        // Only remove if view wasn't already owned
+        if (saveOwner == null)
+        {
+            Remove(p);
+        }
+
+        SetCommands(saveCommands);
 
         return result;
     }
