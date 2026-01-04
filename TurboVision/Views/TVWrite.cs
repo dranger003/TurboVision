@@ -105,16 +105,15 @@ internal ref struct TVWrite
     /// Walks through sibling views in Z-order checking for occlusion.
     ///
     /// This is a direct port of the upstream do { } while (0) idiom which uses
-    /// break statements for complex flow control. The C# version uses goto for
-    /// the same effect to maintain exact behavioral parity.
+    /// goto for complex flow control to maintain exact behavioral parity.
     ///
     /// Upstream structure (tvwrite.cpp lines 138-191):
     ///   do {
-    ///     if (Y < esi) { ... check view bounds ... else break; }
-    ///     else if (sfShadow && Y < esi + shadowSize.y) { ... bottom shadow ... }
+    ///     if (Y &lt; esi) { ... check view bounds ... else break; }
+    ///     else if (sfShadow &amp;&amp; Y &lt; esi + shadowSize.y) { ... bottom shadow ... }
     ///     else break;
     ///     // Shadow depth check - reached from both branches above
-    ///     if (X < esi) { edx++; ... }
+    ///     if (X &lt; esi) { edx++; ... }
     ///   } while (0);
     ///   L20(next);
     /// </summary>
@@ -132,70 +131,69 @@ internal ref struct TVWrite
         else if (next != null)
         {
             // Check if 'next' occludes or shadows the write area
-            // This matches the upstream do { } while (0) structure
-            bool applyShadowCheck = false;
-
+            // This matches the upstream do { } while (0) structure using goto
             if ((next.State & StateFlags.sfVisible) != 0 && next.Origin.Y <= _y)
             {
-                _tempPos = next.Origin.Y + next.Size.Y;
+                _tempPos = next.Origin.Y + next.Size.Y;  // esi = bottom edge of view
                 if (_y < _tempPos)
                 {
                     // Y is within view's vertical bounds
-                    _tempPos = next.Origin.X;
+                    _tempPos = next.Origin.X;  // esi = left edge
                     if (_x < _tempPos)
                     {
-                        // Left part is not occluded
+                        // X is to the left of view
                         if (_count > _tempPos)
-                            L30(next);  // Partial occlusion - split at left edge
-                        // else: entirely to the left, break to L20End
-                        // (upstream: else break;)
+                            L30(next);  // Split at left edge, then continue
+                        else
+                            goto L20End;  // Entirely to the left, skip to next view
+                    }
+                    _tempPos += next.Size.X;  // esi = right edge
+                    if (_x < _tempPos)
+                    {
+                        // X is within view's horizontal extent - occluded
+                        if (_count > _tempPos)
+                            _x = _tempPos;  // Skip occluded part
+                        else
+                            return;  // Completely occluded by this view
+                    }
+                    // Now X >= right edge, check for right shadow
+                    // Right shadow only applies if Y is past shadowSize.Y rows from top
+                    if ((next.State & StateFlags.sfShadow) != 0 &&
+                        next.Origin.Y + TView.ShadowSize.Y <= _y)
+                    {
+                        _tempPos += TView.ShadowSize.X;  // Extend for shadow
+                        // Fall through to shadow application
                     }
                     else
                     {
-                        _tempPos += next.Size.X;
-                        if (_x < _tempPos)
-                        {
-                            // Start is within the view's horizontal extent
-                            if (_count > _tempPos)
-                                _x = _tempPos;  // Partial occlusion - skip to right edge
-                            else
-                                return;  // Completely occluded by this view
-                        }
-                        // Check shadow region to the right of the view
-                        if ((next.State & StateFlags.sfShadow) != 0 &&
-                            next.Origin.Y + TView.ShadowSize.Y <= _y)
-                        {
-                            _tempPos += TView.ShadowSize.X;
-                            applyShadowCheck = true;  // Fall through to shadow check
-                        }
-                        // else: break to L20End (no shadow on right side)
+                        goto L20End;  // No right shadow
                     }
                 }
                 else if ((next.State & StateFlags.sfShadow) != 0 &&
                          _y < _tempPos + TView.ShadowSize.Y)
                 {
                     // Y is below the view but in bottom shadow region
-                    _tempPos = next.Origin.X + TView.ShadowSize.X;
+                    // Bottom shadow starts at origin.X + shadowSize.X (shifted right)
+                    _tempPos = next.Origin.X + TView.ShadowSize.X;  // esi = shadow left edge
                     if (_x < _tempPos)
                     {
                         // X is to the left of the bottom shadow
                         if (_count > _tempPos)
-                            L30(next);  // Partial occlusion - split at shadow left edge
-                        // else: entirely to the left, break to L20End
-                        // (upstream: else break;)
+                            L30(next);  // Split at shadow left edge, then continue
+                        else
+                            goto L20End;  // Entirely to the left, skip to next view
                     }
-                    else
-                    {
-                        // X is within or past the bottom shadow region
-                        _tempPos += next.Size.X;
-                        applyShadowCheck = true;  // Fall through to shadow check
-                    }
+                    _tempPos += next.Size.X;  // esi = shadow right edge
+                    // Fall through to shadow application
                 }
-                // else: Y is past the shadow region entirely, break to L20End
+                else
+                {
+                    // Y is past the shadow region entirely
+                    goto L20End;
+                }
 
-                // Apply shadow if we're in the shadow region
-                // This is reached when applyShadowCheck is true (from either Y < esi or bottom shadow branch)
-                if (applyShadowCheck && _x < _tempPos)
+                // Apply shadow - reached from both branches if not exited
+                if (_x < _tempPos)
                 {
                     _shadowDepth++;
                     if (_count > _tempPos)
@@ -203,11 +201,11 @@ internal ref struct TVWrite
                         L30(next);
                         _shadowDepth--;
                     }
-                    // Continue with shadow applied
                 }
             }
 
-            // L20End: Continue to next view in Z-order
+        L20End:
+            // Continue to next view in Z-order
             L20(next);
         }
     }
