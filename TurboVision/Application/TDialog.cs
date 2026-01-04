@@ -21,10 +21,10 @@ public class TDialog : TWindow
     public const byte dpCyanDialog = 1;
     public const byte dpGrayDialog = 2;
 
-    public TDialog(TRect bounds, string? title) : base(bounds, title, 0)
+    public TDialog(TRect bounds, string? title) : base(bounds, title, WindowConstants.wnNoNumber)
     {
         GrowMode = 0;
-        Flags = 0;
+        Flags = WindowFlags.wfMove | WindowFlags.wfClose;
         Palette = dpGrayDialog;
     }
 
@@ -37,35 +37,43 @@ public class TDialog : TWindow
     {
         base.HandleEvent(ref ev);
 
-        if (ev.What == EventConstants.evKeyDown)
+        switch (ev.What)
         {
-            switch (ev.KeyDown.KeyCode)
-            {
-                case KeyConstants.kbEsc:
-                    ClearEvent(ref ev);
-                    EndModal(CommandConstants.cmCancel);
-                    break;
-                case KeyConstants.kbEnter:
-                    ClearEvent(ref ev);
-                    // TODO: Find default button and press it
-                    break;
-            }
-        }
-        else if (ev.What == EventConstants.evCommand)
-        {
-            switch (ev.Message.Command)
-            {
-                case CommandConstants.cmOK:
-                case CommandConstants.cmCancel:
-                case CommandConstants.cmYes:
-                case CommandConstants.cmNo:
-                    if (GetState(StateFlags.sfModal))
-                    {
+            case EventConstants.evKeyDown:
+                switch (ev.KeyDown.KeyCode)
+                {
+                    case KeyConstants.kbEsc:
+                        ev.What = EventConstants.evCommand;
+                        ev.Message.Command = CommandConstants.cmCancel;
+                        ev.Message.InfoPtr = null;
+                        PutEvent(ev);
                         ClearEvent(ref ev);
-                        EndModal(ev.Message.Command);
-                    }
-                    break;
-            }
+                        break;
+                    case KeyConstants.kbEnter:
+                        ev.What = EventConstants.evBroadcast;
+                        ev.Message.Command = CommandConstants.cmDefault;
+                        ev.Message.InfoPtr = null;
+                        PutEvent(ev);
+                        ClearEvent(ref ev);
+                        break;
+                }
+                break;
+
+            case EventConstants.evCommand:
+                switch (ev.Message.Command)
+                {
+                    case CommandConstants.cmOK:
+                    case CommandConstants.cmCancel:
+                    case CommandConstants.cmYes:
+                    case CommandConstants.cmNo:
+                        if (GetState(StateFlags.sfModal))
+                        {
+                            EndModal(ev.Message.Command);
+                            ClearEvent(ref ev);
+                        }
+                        break;
+                }
+                break;
         }
     }
 
