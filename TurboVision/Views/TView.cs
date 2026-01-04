@@ -309,7 +309,17 @@ public class TView : TObject
 
             case StateFlags.sfFocused:
                 ResetCursor();
-                // TODO: Broadcast cmReceivedFocus/cmReleasedFocus
+                // Broadcast cmReceivedFocus/cmReleasedFocus to linked views
+                if (Owner != null)
+                {
+                    var ev = new TEvent
+                    {
+                        What = EventConstants.evBroadcast
+                    };
+                    ev.Message.Command = enable ? CommandConstants.cmReceivedFocus : CommandConstants.cmReleasedFocus;
+                    ev.Message.InfoPtr = this;
+                    Owner.HandleEvent(ref ev);
+                }
                 break;
         }
     }
