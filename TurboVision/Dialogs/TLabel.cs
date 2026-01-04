@@ -10,6 +10,9 @@ public class TLabel : TStaticText
 {
     private static readonly byte[] DefaultPalette = [0x07, 0x08, 0x09, 0x09];
 
+    // Special characters for showMarkers mode: », «, →, ←, ' ', ' '
+    private static readonly char[] SpecialChars = ['\u00BB', '\u00AB', '\u001A', '\u001B', ' ', ' '];
+
     protected TView? Link { get; set; }
     protected bool Light { get; set; }
 
@@ -23,23 +26,47 @@ public class TLabel : TStaticText
     public override void Draw()
     {
         var b = new TDrawBuffer();
-        byte colorIndex = (byte)(Light ? 2 : 1);
-        var color = GetColor((ushort)((colorIndex << 8) | colorIndex));
-        var scOff = GetColor(0x0304);
+        TAttrPair color;
+        int scOff;
+
+        if (Light)
+        {
+            color = GetColor(0x0402);
+            scOff = 0;
+        }
+        else
+        {
+            color = GetColor(0x0301);
+            scOff = 4;
+        }
 
         b.MoveChar(0, ' ', color.Normal, Size.X);
 
         if (!string.IsNullOrEmpty(Text))
         {
-            b.MoveCStr(0, Text, new TAttrPair(color.Normal, scOff.Normal));
+            b.MoveCStr(1, Text, color);
         }
 
-        WriteLine(0, 0, Size.X, Size.Y, b);
+        if (ShowMarkers)
+        {
+            b.PutChar(0, SpecialChars[scOff]);
+        }
+
+        WriteLine(0, 0, Size.X, 1, b);
     }
 
     public override TPalette? GetPalette()
     {
         return new TPalette(DefaultPalette);
+    }
+
+    private void FocusLink(ref TEvent ev)
+    {
+        if (Link != null && (Link.Options & OptionFlags.ofSelectable) != 0)
+        {
+            Link.Focus();
+        }
+        ClearEvent(ref ev);
     }
 
     public override void HandleEvent(ref TEvent ev)
@@ -48,25 +75,25 @@ public class TLabel : TStaticText
 
         if (ev.What == EventConstants.evMouseDown)
         {
-            if (Link != null)
-            {
-                Link.Select();
-                ClearEvent(ref ev);
-            }
+            FocusLink(ref ev);
         }
         else if (ev.What == EventConstants.evKeyDown)
         {
-            // TODO: Check for shortcut key
-        }
-        else if (ev.What == EventConstants.evBroadcast)
-        {
-            if (ev.Message.Command == CommandConstants.cmReceivedFocus ||
-                ev.Message.Command == CommandConstants.cmReleasedFocus)
+            char c = TStringUtils.HotKey(Text ?? "");
+            if (ev.KeyDown.KeyCode != 0 &&
+                (TStringUtils.GetAltCode(c) == ev.KeyDown.KeyCode ||
+                 (c != '\0' && Owner?.Phase == PhaseType.phPostProcess &&
+                  c == char.ToUpperInvariant((char)ev.KeyDown.CharCode))))
             {
-                Light = ev.Message.Command == CommandConstants.cmReceivedFocus &&
-                        ev.Message.InfoPtr == (nint)(Link?.GetHashCode() ?? 0);
-                DrawView();
+                FocusLink(ref ev);
             }
+        }
+        else if (ev.What == EventConstants.evBroadcast && Link != null &&
+                 (ev.Message.Command == CommandConstants.cmReceivedFocus ||
+                  ev.Message.Command == CommandConstants.cmReleasedFocus))
+        {
+            Light = (Link.State & StateFlags.sfFocused) != 0;
+            DrawView();
         }
     }
 
