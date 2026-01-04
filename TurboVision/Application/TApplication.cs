@@ -25,6 +25,7 @@ public class TApplication : TProgram
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && _driver == null)
         {
             _driver = new Win32ConsoleDriver();
+            TScreen.StartupCursor = _driver.GetCursorType();
             TScreen.Initialize(_driver);
             TEventQueue.Initialize(_driver);
         }
@@ -104,6 +105,7 @@ public class TApplication : TProgram
     public override void ShutDown()
     {
         base.ShutDown();
+        TScreen.Suspend();
         _driver?.Dispose();
         _driver = null;
     }

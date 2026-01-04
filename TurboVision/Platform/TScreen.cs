@@ -78,7 +78,14 @@ public static class TScreen
     /// </summary>
     public static void Suspend()
     {
-        _driver?.Suspend();
+        if (_driver == null)
+            return;
+
+        if (ClearOnSuspend)
+            ClearScreen();
+
+        _driver.SetCursorType(StartupCursor);
+        _driver.Suspend();
     }
 
     /// <summary>
