@@ -35,11 +35,13 @@ public class TFrame : TView
         0x13, 0x1A, 0x19  // active: bottom-left, bottom-middle, bottom-right
     ];
 
-    public static string CloseIcon { get; set; } = "[■]";
-    public static string ZoomIcon { get; set; } = "[↑]";
-    public static string UnZoomIcon { get; set; } = "[↓]";
-    public static string DragIcon { get; set; } = "───";
-    public static string DragLeftIcon { get; set; } = "───";
+    // Icons use ~ markers to indicate highlighted (green) portion
+    // Upstream: closeIcon = "[~\xFE~]", zoomIcon = "[~\x18~]", etc.
+    public static string CloseIcon { get; set; } = "[~■~]";
+    public static string ZoomIcon { get; set; } = "[~↑~]";
+    public static string UnZoomIcon { get; set; } = "[~↓~]";
+    public static string DragIcon { get; set; } = "~─┘~";
+    public static string DragLeftIcon { get; set; } = "~└─~";
 
     public TFrame(TRect bounds) : base(bounds)
     {
