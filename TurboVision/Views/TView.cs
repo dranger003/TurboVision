@@ -673,13 +673,13 @@ public class TView : TObject
 
     public static void SetCommands(TCommandSet commands)
     {
-        // TODO: Implement
+        CurCommandSet.CopyFrom(commands);
         CommandSetChanged = true;
     }
 
     public static void GetCommands(TCommandSet commands)
     {
-        // TODO: Implement copy
+        CurCommandSet.CopyTo(commands);
     }
 
     // Modal execution
