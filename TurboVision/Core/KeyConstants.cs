@@ -73,6 +73,45 @@ public static class TStringUtils
         };
     }
 
+    // Scan code to character mapping for Alt+letter (scan codes 0x10-0x32)
+    private const string AltCodes1 = "QWERTYUIOP\0\0\0\0ASDFGHJKL\0\0\0\0\0ZXCVBNM";
+    // Scan code to character mapping for Alt+number (scan codes 0x78-0x83)
+    private const string AltCodes2 = "1234567890-=";
+
+    /// <summary>
+    /// Returns the character for an Alt+key combination based on scan code, or '\0' if none.
+    /// </summary>
+    public static char GetAltChar(ushort keyCode)
+    {
+        byte charCode = (byte)(keyCode & 0xFF);
+        byte scanCode = (byte)(keyCode >> 8);
+
+        // Only handle extended keys (charCode == 0)
+        if (charCode == 0)
+        {
+            // Alt+letter (scan codes 0x10-0x32)
+            if (scanCode >= 0x10 && scanCode <= 0x32)
+            {
+                int index = scanCode - 0x10;
+                if (index < AltCodes1.Length && AltCodes1[index] != '\0')
+                {
+                    return AltCodes1[index];
+                }
+            }
+            // Alt+number (scan codes 0x78-0x83)
+            else if (scanCode >= 0x78 && scanCode <= 0x83)
+            {
+                int index = scanCode - 0x78;
+                if (index < AltCodes2.Length)
+                {
+                    return AltCodes2[index];
+                }
+            }
+        }
+
+        return '\0';
+    }
+
     /// <summary>
     /// Converts Ctrl+letter key codes to their arrow key equivalents (WordStar-style).
     /// Ctrl+E = Up, Ctrl+S = Left, Ctrl+D = Right, Ctrl+X = Down.
