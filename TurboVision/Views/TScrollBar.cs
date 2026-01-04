@@ -9,9 +9,11 @@ public class TScrollBar : TView
 {
     private static readonly byte[] DefaultPalette = [0x04, 0x05, 0x05];
 
-    // Scroll bar character sets
-    public static char[] VChars { get; set; } = ['▲', '▼', '░', '░', '█'];
-    public static char[] HChars { get; set; } = ['◄', '►', '░', '░', '█'];
+    // Scroll bar character sets - matching upstream tvtext1.cpp
+    // vChars: {'\x1E', '\x1F', '\xB1', '\xFE', '\xB2'} = {▲, ▼, ░, ■, ▓}
+    // hChars: {'\x11', '\x10', '\xB1', '\xFE', '\xB2'} = {◄, ►, ░, ■, ▓}
+    public static char[] VChars { get; set; } = ['\u25B2', '\u25BC', '\u2591', '\u25A0', '\u2593'];
+    public static char[] HChars { get; set; } = ['\u25C4', '\u25BA', '\u2591', '\u25A0', '\u2593'];
 
     public int Value { get; set; }
     public int MinVal { get; set; }
@@ -34,15 +36,31 @@ public class TScrollBar : TView
         }
 
         Options |= OptionFlags.ofPostProcess;
+        EventMask |= EventConstants.evMouseWheel;
     }
 
     public override void Draw()
     {
-        // TODO: Implement scrollbar drawing
-        var b = new TDrawBuffer();
-        var color = GetColor(0x0301);
+        DrawPos(GetPos());
+    }
 
-        b.MoveChar(0, '░', color.Normal, Size.X * Size.Y);
+    public void DrawPos(int pos)
+    {
+        var b = new TDrawBuffer();
+
+        int s = GetSize() - 1;
+        b.MoveChar(0, Chars[0], GetColor(2).Normal, 1);
+        if (MaxVal == MinVal)
+        {
+            b.MoveChar(1, Chars[4], GetColor(1).Normal, s - 1);
+        }
+        else
+        {
+            b.MoveChar(1, Chars[2], GetColor(1).Normal, s - 1);
+            b.MoveChar(pos, Chars[3], GetColor(3).Normal, 1);
+        }
+
+        b.MoveChar(s, Chars[1], GetColor(2).Normal, 1);
         WriteBuf(0, 0, Size.X, Size.Y, b);
     }
 
@@ -51,27 +69,288 @@ public class TScrollBar : TView
         return new TPalette(DefaultPalette);
     }
 
+    public int GetPos()
+    {
+        int r = MaxVal - MinVal;
+        if (r == 0)
+        {
+            return 1;
+        }
+        else
+        {
+            return (int)((((long)(Value - MinVal) * (GetSize() - 3)) + (r >> 1)) / r) + 1;
+        }
+    }
+
+    public int GetSize()
+    {
+        int s;
+
+        if (Size.X == 1)
+        {
+            s = Size.Y;
+        }
+        else
+        {
+            s = Size.X;
+        }
+
+        return Math.Max(3, s);
+    }
+
+    // Static variables for mouse tracking during drag
+    private TPoint _mouse;
+    private int _p;
+    private int _s;
+    private TRect _extent;
+
+    private int GetPartCode()
+    {
+        int part = -1;
+        if (_extent.Contains(_mouse))
+        {
+            int mark = (Size.X == 1) ? _mouse.Y : _mouse.X;
+
+            if (mark == _p)
+            {
+                part = ScrollBarParts.sbIndicator;
+            }
+            else
+            {
+                if (mark < 1)
+                {
+                    part = ScrollBarParts.sbLeftArrow;
+                }
+                else if (mark < _p)
+                {
+                    part = ScrollBarParts.sbPageLeft;
+                }
+                else if (mark < _s)
+                {
+                    part = ScrollBarParts.sbPageRight;
+                }
+                else
+                {
+                    part = ScrollBarParts.sbRightArrow;
+                }
+
+                if (Size.X == 1)
+                {
+                    part += 4;
+                }
+            }
+        }
+        return part;
+    }
+
     public override void HandleEvent(ref TEvent ev)
     {
-        base.HandleEvent(ref ev);
+        int i, clickPart, step = 0;
 
-        if (ev.What == EventConstants.evMouseDown)
+        base.HandleEvent(ref ev);
+        switch (ev.What)
         {
-            // TODO: Handle mouse click on scrollbar parts
+            case EventConstants.evMouseWheel:
+                if ((State & StateFlags.sfVisible) != 0)
+                {
+                    if (Size.X == 1)
+                    {
+                        switch (ev.Mouse.Wheel)
+                        {
+                            case EventConstants.mwUp: step = -ArStep; break;
+                            case EventConstants.mwDown: step = ArStep; break;
+                        }
+                    }
+                    else
+                    {
+                        switch (ev.Mouse.Wheel)
+                        {
+                            case EventConstants.mwLeft: step = -ArStep; break;
+                            case EventConstants.mwRight: step = ArStep; break;
+                        }
+                    }
+                }
+                if (step != 0)
+                {
+                    Message(Owner, EventConstants.evBroadcast, CommandConstants.cmScrollBarClicked, this);
+                    SetValue(Value + 3 * step);
+                    ClearEvent(ref ev);
+                }
+                break;
+
+            case EventConstants.evMouseDown:
+                Message(Owner, EventConstants.evBroadcast, CommandConstants.cmScrollBarClicked, this);
+                _mouse = MakeLocal(ev.Mouse.Where);
+                _extent = GetExtent();
+                _extent.Grow(1, 1);
+                _p = GetPos();
+                _s = GetSize() - 1;
+                clickPart = GetPartCode();
+                switch (clickPart)
+                {
+                    case ScrollBarParts.sbLeftArrow:
+                    case ScrollBarParts.sbRightArrow:
+                    case ScrollBarParts.sbUpArrow:
+                    case ScrollBarParts.sbDownArrow:
+                        do
+                        {
+                            _mouse = MakeLocal(ev.Mouse.Where);
+                            if (GetPartCode() == clickPart)
+                            {
+                                SetValue(Value + ScrollStep(clickPart));
+                            }
+                        } while (MouseEvent(ref ev, EventConstants.evMouseAuto));
+                        break;
+
+                    default:
+                        do
+                        {
+                            _mouse = MakeLocal(ev.Mouse.Where);
+                            if (Size.X == 1)
+                            {
+                                i = _mouse.Y;
+                            }
+                            else
+                            {
+                                i = _mouse.X;
+                            }
+                            i = Math.Max(i, 1);
+                            i = Math.Min(i, _s - 1);
+                            _p = i;
+                            if (_s > 2)
+                            {
+                                SetValue((int)(((long)(_p - 1) * (MaxVal - MinVal) + ((_s - 2) >> 1)) / (_s - 2)) + MinVal);
+                            }
+                            DrawPos(_p);
+                        } while (MouseEvent(ref ev, EventConstants.evMouseMove));
+                        break;
+                }
+                ClearEvent(ref ev);
+                break;
+
+            case EventConstants.evKeyDown:
+                if ((State & StateFlags.sfVisible) != 0)
+                {
+                    clickPart = ScrollBarParts.sbIndicator;
+                    i = Value;
+                    if (Size.Y == 1)
+                    {
+                        switch (TStringUtils.CtrlToArrow(ev.KeyDown.KeyCode))
+                        {
+                            case KeyConstants.kbLeft:
+                                clickPart = ScrollBarParts.sbLeftArrow;
+                                break;
+                            case KeyConstants.kbRight:
+                                clickPart = ScrollBarParts.sbRightArrow;
+                                break;
+                            case KeyConstants.kbCtrlLeft:
+                                clickPart = ScrollBarParts.sbPageLeft;
+                                break;
+                            case KeyConstants.kbCtrlRight:
+                                clickPart = ScrollBarParts.sbPageRight;
+                                break;
+                            case KeyConstants.kbCtrlUp:
+                                clickPart = ScrollBarParts.sbPageUp;
+                                break;
+                            case KeyConstants.kbCtrlDown:
+                                clickPart = ScrollBarParts.sbPageDown;
+                                break;
+                            case KeyConstants.kbHome:
+                                i = MinVal;
+                                break;
+                            case KeyConstants.kbEnd:
+                                i = MaxVal;
+                                break;
+                            default:
+                                return;
+                        }
+                    }
+                    else
+                    {
+                        switch (TStringUtils.CtrlToArrow(ev.KeyDown.KeyCode))
+                        {
+                            case KeyConstants.kbUp:
+                                clickPart = ScrollBarParts.sbUpArrow;
+                                break;
+                            case KeyConstants.kbDown:
+                                clickPart = ScrollBarParts.sbDownArrow;
+                                break;
+                            case KeyConstants.kbPgUp:
+                                clickPart = ScrollBarParts.sbPageUp;
+                                break;
+                            case KeyConstants.kbPgDn:
+                                clickPart = ScrollBarParts.sbPageDown;
+                                break;
+                            case KeyConstants.kbCtrlPgUp:
+                                i = MinVal;
+                                break;
+                            case KeyConstants.kbCtrlPgDn:
+                                i = MaxVal;
+                                break;
+                            default:
+                                return;
+                        }
+                    }
+                    Message(Owner, EventConstants.evBroadcast, CommandConstants.cmScrollBarClicked, this);
+                    if (clickPart != ScrollBarParts.sbIndicator)
+                    {
+                        i = Value + ScrollStep(clickPart);
+                    }
+                    SetValue(i);
+                    ClearEvent(ref ev);
+                }
+                break;
         }
-        else if (ev.What == EventConstants.evKeyDown)
+    }
+
+    public virtual void ScrollDraw()
+    {
+        Message(Owner, EventConstants.evBroadcast, CommandConstants.cmScrollBarChanged, this);
+    }
+
+    public virtual int ScrollStep(int part)
+    {
+        int step;
+
+        if ((part & 2) == 0)
         {
-            // TODO: Handle keyboard navigation
+            step = ArStep;
+        }
+        else
+        {
+            step = PgStep;
+        }
+        if ((part & 1) == 0)
+        {
+            return -step;
+        }
+        else
+        {
+            return step;
         }
     }
 
     public void SetParams(int aValue, int aMin, int aMax, int aPgStep, int aArStep)
     {
-        MaxVal = aMax;
-        MinVal = aMin;
+        int sValue;
+
+        aMax = Math.Max(aMax, aMin);
+        aValue = Math.Max(aMin, aValue);
+        aValue = Math.Min(aMax, aValue);
+        sValue = Value;
+        if (sValue != aValue || MinVal != aMin || MaxVal != aMax)
+        {
+            Value = aValue;
+            MinVal = aMin;
+            MaxVal = aMax;
+            DrawView();
+            if (sValue != aValue)
+            {
+                ScrollDraw();
+            }
+        }
         PgStep = aPgStep;
         ArStep = aArStep;
-        SetValue(aValue);
     }
 
     public void SetRange(int aMin, int aMax)
@@ -86,47 +365,22 @@ public class TScrollBar : TView
 
     public void SetValue(int aValue)
     {
-        Value = Math.Max(MinVal, Math.Min(MaxVal, aValue));
-        DrawView();
-        // TODO: Notify owner of change
+        SetParams(aValue, MinVal, MaxVal, PgStep, ArStep);
     }
 
-    public virtual void ScrollDraw()
+    /// <summary>
+    /// Sends a message to a view via its owner.
+    /// </summary>
+    private static void Message(TGroup? owner, ushort what, ushort command, object? infoPtr)
     {
-        // TODO: Implement scroll indicator drawing
-    }
+        if (owner == null) return;
 
-    public virtual int ScrollStep(int part)
-    {
-        return part switch
+        var ev = new TEvent
         {
-            ScrollBarParts.sbUpArrow or ScrollBarParts.sbLeftArrow => -ArStep,
-            ScrollBarParts.sbDownArrow or ScrollBarParts.sbRightArrow => ArStep,
-            ScrollBarParts.sbPageUp or ScrollBarParts.sbPageLeft => -PgStep,
-            ScrollBarParts.sbPageDown or ScrollBarParts.sbPageRight => PgStep,
-            _ => 0
+            What = what,
+            Message = new MessageEvent { Command = command, InfoPtr = infoPtr }
         };
-    }
 
-    public void DrawPos(int pos)
-    {
-        // TODO: Implement position indicator drawing
-    }
-
-    public int GetPos()
-    {
-        // TODO: Calculate position based on value
-        return 0;
-    }
-
-    public int GetSize()
-    {
-        return Size.X == 1 ? Size.Y : Size.X;
-    }
-
-    private int GetPartCode()
-    {
-        // TODO: Determine which part was clicked
-        return 0;
+        owner.HandleEvent(ref ev);
     }
 }
