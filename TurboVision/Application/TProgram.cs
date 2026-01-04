@@ -151,8 +151,8 @@ public class TProgram : TGroup
         }
         else
         {
-            // Wait for events before polling (like upstream tvision)
-            TEventQueue.WaitForEvents(EventTimeoutMs);
+            // Wait for events with dynamic timeout considering timer queue
+            TEventQueue.WaitForEvents(EventWaitTimeout());
 
             TEventQueue.GetMouseEvent(ref ev);
             if (ev.What == EventConstants.evNothing)
@@ -171,6 +171,26 @@ public class TProgram : TGroup
             SetScreenMode(TDisplay.smUpdate);
             ClearEvent(ref ev);
         }
+    }
+
+    /// <summary>
+    /// Calculates the wait timeout for the event loop, considering both
+    /// the default event timeout and any pending timers in the timer queue.
+    /// </summary>
+    protected virtual int EventWaitTimeout()
+    {
+        int timerTimeoutMs = TView.TimerQueue.TimeUntilNextTimeout();
+
+        // If no timers, use event timeout
+        if (timerTimeoutMs < 0)
+            return EventTimeoutMs;
+
+        // If event timeout is disabled, use timer timeout
+        if (EventTimeoutMs < 0)
+            return timerTimeoutMs;
+
+        // Return minimum of both
+        return Math.Min(EventTimeoutMs, timerTimeoutMs);
     }
 
     public override TPalette? GetPalette()
