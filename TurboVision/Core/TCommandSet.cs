@@ -21,6 +21,22 @@ public class TCommandSet : IEquatable<TCommandSet>
     }
 
     /// <summary>
+    /// Copies all command states from another set into this one.
+    /// </summary>
+    public void CopyFrom(TCommandSet other)
+    {
+        Array.Copy(other._commands, _commands, _commands.Length);
+    }
+
+    /// <summary>
+    /// Copies all command states from this set into another one.
+    /// </summary>
+    public void CopyTo(TCommandSet other)
+    {
+        Array.Copy(_commands, other._commands, _commands.Length);
+    }
+
+    /// <summary>
     /// Checks if a command is enabled.
     /// </summary>
     public bool Has(int cmd)
