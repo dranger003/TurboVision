@@ -8,7 +8,8 @@
             "Bash(dotnet build:*)",
             "Bash(dotnet test:*)",
             "Bash(cat:*)",
-            "Bash(git:*)"
+            "Bash(git:*)",
+            "Bash(find:*)"
         ]
     },
     "outputStyle": "default"
