@@ -15,21 +15,94 @@ public class TStaticText : TView
     public TStaticText(TRect bounds, string? text) : base(bounds)
     {
         Text = text;
+        GrowMode |= GrowFlags.gfFixed;
     }
 
     public override void Draw()
     {
         var b = new TDrawBuffer();
-        var color = GetColor(0x01);
+        var color = GetColor(1).Normal;
 
-        b.MoveChar(0, ' ', color.Normal, Size.X);
+        Span<char> buf = stackalloc char[256];
+        GetText(buf);
 
-        if (!string.IsNullOrEmpty(Text))
+        // Find actual length (null-terminated or full span)
+        int textLen = buf.IndexOf('\0');
+        if (textLen < 0) textLen = buf.Length;
+
+        // Use original Text if possible to avoid truncation
+        ReadOnlySpan<char> s = Text != null && Text.AsSpan().StartsWith(buf.Slice(0, Math.Min(textLen, Text.Length)))
+            ? Text.AsSpan()
+            : buf.Slice(0, textLen);
+
+        int l = s.Length;
+        int p = 0;
+        int y = 0;
+        bool center = false;
+
+        while (y < Size.Y)
         {
-            b.MoveCStr(0, Text, new TAttrPair(color.Normal, color.Normal));
-        }
+            b.MoveChar(0, ' ', color, Size.X);
 
-        WriteLine(0, 0, Size.X, Size.Y, b);
+            if (p < l)
+            {
+                // Check for centering control character (ASCII 3)
+                if (s[p] == '\x03')
+                {
+                    center = true;
+                    p++;
+                }
+
+                int lineStart = p;
+
+                // Find how much text fits on this line
+                int lineEnd = lineStart;
+                int lastWordBreak = lineStart;
+
+                while (lineEnd < l && s[lineEnd] != '\n')
+                {
+                    // Track word boundaries
+                    if (lineEnd > lineStart && s[lineEnd - 1] == ' ' && s[lineEnd] != ' ')
+                    {
+                        lastWordBreak = lineEnd;
+                    }
+
+                    // Check if we've exceeded the line width
+                    if (lineEnd - lineStart >= Size.X)
+                    {
+                        // Break at last word boundary if possible
+                        if (lastWordBreak > lineStart)
+                        {
+                            lineEnd = lastWordBreak;
+                        }
+                        break;
+                    }
+                    lineEnd++;
+                }
+
+                // Calculate display width
+                int width = lineEnd - lineStart;
+                int indent = center ? (Size.X - width) / 2 : 0;
+                if (indent < 0) indent = 0;
+
+                // Draw the text segment
+                b.MoveStr(indent, s.Slice(lineStart, width), color);
+
+                // Skip trailing spaces
+                p = lineEnd;
+                while (p < l && s[p] == ' ')
+                    p++;
+
+                // Handle newline
+                if (p < l && s[p] == '\n')
+                {
+                    center = false;
+                    p++;
+                }
+            }
+
+            WriteLine(0, y++, Size.X, 1, b);
+        }
     }
 
     public override TPalette? GetPalette()
@@ -41,8 +114,16 @@ public class TStaticText : TView
     {
         if (Text != null)
         {
-            int len = Math.Min(Text.Length, dest.Length);
+            int len = Math.Min(Text.Length, dest.Length - 1);
             Text.AsSpan(0, len).CopyTo(dest);
+            if (len < dest.Length)
+            {
+                dest[len] = '\0';
+            }
+        }
+        else if (dest.Length > 0)
+        {
+            dest[0] = '\0';
         }
     }
 }
