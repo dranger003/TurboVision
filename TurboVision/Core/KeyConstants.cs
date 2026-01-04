@@ -1,10 +1,116 @@
 namespace TurboVision.Core;
 
 /// <summary>
+/// String utilities for TUI controls.
+/// </summary>
+public static class TStringUtils
+{
+    /// <summary>
+    /// Extracts the hot key character from a string containing ~tilde~ markers.
+    /// Returns the uppercase character immediately after the first ~, or '\0' if none.
+    /// </summary>
+    public static char HotKey(ReadOnlySpan<char> s)
+    {
+        int idx = s.IndexOf('~');
+        if (idx >= 0 && idx + 1 < s.Length)
+        {
+            return char.ToUpperInvariant(s[idx + 1]);
+        }
+        return '\0';
+    }
+
+    /// <summary>
+    /// Returns the display length of a string, excluding ~tilde~ markers.
+    /// </summary>
+    public static int CstrLen(ReadOnlySpan<char> s)
+    {
+        int len = 0;
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (s[i] != '~')
+            {
+                len++;
+            }
+        }
+        return len;
+    }
+
+    /// <summary>
+    /// Returns the Alt+key code for a character, or 0 if no mapping exists.
+    /// </summary>
+    public static ushort GetAltCode(char c)
+    {
+        c = char.ToUpperInvariant(c);
+        return c switch
+        {
+            'A' => KeyConstants.kbAltA,
+            'B' => KeyConstants.kbAltB,
+            'C' => KeyConstants.kbAltC,
+            'D' => KeyConstants.kbAltD,
+            'E' => KeyConstants.kbAltE,
+            'F' => KeyConstants.kbAltF,
+            'G' => KeyConstants.kbAltG,
+            'H' => KeyConstants.kbAltH,
+            'I' => KeyConstants.kbAltI,
+            'J' => KeyConstants.kbAltJ,
+            'K' => KeyConstants.kbAltK,
+            'L' => KeyConstants.kbAltL,
+            'M' => KeyConstants.kbAltM,
+            'N' => KeyConstants.kbAltN,
+            'O' => KeyConstants.kbAltO,
+            'P' => KeyConstants.kbAltP,
+            'Q' => KeyConstants.kbAltQ,
+            'R' => KeyConstants.kbAltR,
+            'S' => KeyConstants.kbAltS,
+            'T' => KeyConstants.kbAltT,
+            'U' => KeyConstants.kbAltU,
+            'V' => KeyConstants.kbAltV,
+            'W' => KeyConstants.kbAltW,
+            'X' => KeyConstants.kbAltX,
+            'Y' => KeyConstants.kbAltY,
+            'Z' => KeyConstants.kbAltZ,
+            _ => 0
+        };
+    }
+
+    /// <summary>
+    /// Converts Ctrl+letter key codes to their arrow key equivalents (WordStar-style).
+    /// Ctrl+E = Up, Ctrl+S = Left, Ctrl+D = Right, Ctrl+X = Down.
+    /// </summary>
+    public static ushort CtrlToArrow(ushort keyCode)
+    {
+        // Check for WordStar-style control key navigation
+        byte charCode = (byte)(keyCode & 0xFF);
+        if (charCode >= 1 && charCode <= 26)
+        {
+            return (char)(charCode + 'A' - 1) switch
+            {
+                'E' => KeyConstants.kbUp,     // Ctrl+E = Up
+                'S' => KeyConstants.kbLeft,   // Ctrl+S = Left
+                'D' => KeyConstants.kbRight,  // Ctrl+D = Right
+                'X' => KeyConstants.kbDown,   // Ctrl+X = Down
+                'A' => KeyConstants.kbHome,   // Ctrl+A = Home (word left in some contexts)
+                'F' => KeyConstants.kbEnd,    // Ctrl+F = End (word right in some contexts)
+                _ => keyCode
+            };
+        }
+        return keyCode;
+    }
+}
+
+/// <summary>
 /// Key code constants for keyboard events.
 /// </summary>
 public static class KeyConstants
 {
+    // Additional key codes used by controls
+    public const ushort kbBack = kbBackSpace;
+    public const ushort kbCtrlBack = 0x0E7F;
+    public const ushort kbAltBack = 0x0E00;
+    public const ushort kbCtrlDel = 0x9300;
+
+    // Shift state flag (combined left/right shift)
+    public const ushort kbShift = 0x0010;
     // Special keys
     public const ushort kbNoKey = 0x0000;
     public const ushort kbEnter = 0x1C0D;
