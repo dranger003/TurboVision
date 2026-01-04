@@ -77,8 +77,9 @@ public class TProgram : TGroup
         State = StateFlags.sfVisible | StateFlags.sfSelected | StateFlags.sfFocused |
                 StateFlags.sfModal | StateFlags.sfExposed;
 
-        // Disable buffering at program level - we draw directly to screen
-        Options &= unchecked((ushort)~OptionFlags.ofBuffered);
+        // TProgram uses TScreen.ScreenBuffer directly as its buffer
+        // This is the top of the hierarchical write system
+        Options |= OptionFlags.ofBuffered;
 
         InitScreen();
 
@@ -86,6 +87,9 @@ public class TProgram : TGroup
         var screenRect = new TRect(0, 0, TScreen.ScreenWidth, TScreen.ScreenHeight);
         SetBounds(screenRect);
         Clip = GetExtent();
+
+        // Use the screen buffer as our buffer
+        Buffer = TScreen.ScreenBuffer;
 
         var r = GetExtent();
 
@@ -286,6 +290,29 @@ public class TProgram : TGroup
         _pending = ev;
     }
 
+    /// <summary>
+    /// Overrides TGroup.Draw to handle the fact that TProgram's buffer IS the screen buffer.
+    /// Children write directly to the screen buffer and flush via TVWrite.L50.
+    /// TProgram doesn't need to write its buffer anywhere since it has no owner.
+    /// </summary>
+    public override void Draw()
+    {
+        // For TProgram, Buffer == TScreen.ScreenBuffer
+        // Children write directly to it and flush in TVWrite.L50
+        // We just need to ensure children are drawn
+        if (Buffer != null)
+        {
+            var saveClip = Clip;
+            Clip = GetClipRect();
+            Redraw();
+            Clip = saveClip;
+        }
+        else
+        {
+            base.Draw();
+        }
+    }
+
     public virtual void Run()
     {
         // Clear screen and trigger initial draw
@@ -317,6 +344,8 @@ public class TProgram : TGroup
         InitScreen();
         var r = new TRect(0, 0, TScreen.ScreenWidth, TScreen.ScreenHeight);
         ChangeBounds(r);
+        // Reassign screen buffer after resize
+        Buffer = TScreen.ScreenBuffer;
         SetState(StateFlags.sfExposed, false);
         SetState(StateFlags.sfExposed, true);
         Redraw();
