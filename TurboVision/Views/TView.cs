@@ -16,9 +16,26 @@ public class TView : TObject
 
     // Static members
     public static bool CommandSetChanged { get; set; }
-    public static TCommandSet CurCommandSet { get; } = new();
+    public static TCommandSet CurCommandSet { get; } = InitCommands();
     public static bool ShowMarkers { get; set; }
     public static byte ErrorAttr { get; set; } = 0xCF;
+
+    private static TCommandSet InitCommands()
+    {
+        var temp = new TCommandSet();
+        // Enable all commands by default
+        for (int i = 0; i < 256; i++)
+        {
+            temp.EnableCmd(i);
+        }
+        // Disable window-specific commands (enabled when windows are present)
+        temp.DisableCmd(CommandConstants.cmZoom);
+        temp.DisableCmd(CommandConstants.cmClose);
+        temp.DisableCmd(CommandConstants.cmResize);
+        temp.DisableCmd(CommandConstants.cmNext);
+        temp.DisableCmd(CommandConstants.cmPrev);
+        return temp;
+    }
 
     // Instance members
     public TView? Next { get; set; }
@@ -517,7 +534,8 @@ public class TView : TObject
     // Commands
     public static bool CommandEnabled(ushort command)
     {
-        return CurCommandSet.Has(command);
+        // Commands > 255 are always enabled (not tracked in the command set)
+        return command > 255 || CurCommandSet.Has(command);
     }
 
     public static void EnableCommand(ushort command)

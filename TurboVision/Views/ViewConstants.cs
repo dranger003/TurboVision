@@ -117,3 +117,11 @@ public static class WindowPalettes
     public const byte wpCyanWindow = 1;
     public const byte wpGrayWindow = 2;
 }
+
+/// <summary>
+/// Window number constants.
+/// </summary>
+public static class WindowConstants
+{
+    public const short wnNoNumber = 0;
+}
