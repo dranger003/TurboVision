@@ -349,11 +349,10 @@ public class TGroup : TView
         }
         else
         {
-            // No buffer, draw directly
-            var saveClip = Clip;
+            // No buffer, draw directly (matches upstream exactly)
             Clip = GetClipRect();
             Redraw();
-            Clip = saveClip;
+            Clip = GetExtent();
         }
     }
 
