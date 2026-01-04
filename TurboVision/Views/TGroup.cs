@@ -27,17 +27,24 @@ public class TGroup : TView
         var p = Last;
         if (p != null)
         {
+            // First, hide all views
             do
             {
-                var next = p.Next;
-                p.ShutDown();
-                p = next;
+                p.Hide();
+                p = p.Prev();
             } while (p != Last && p != null);
+
+            // Then destroy all views - continue until Last is null
+            do
+            {
+                var prev = p!.Prev();
+                p.ShutDown();
+                p = prev;
+            } while (Last != null);
         }
 
         FreeBuffer();
         Current = null;
-        Last = null;
         base.ShutDown();
     }
 
