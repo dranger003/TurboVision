@@ -171,8 +171,9 @@ The TKey struct now implements full normalization matching the upstream C++ beha
 
 # NEXT STEPS
 
-1. Implement TFrame mouse handling (drag to move/resize windows)
-2. Implement TInputLine text input control
-3. Implement TCheckBoxes and TRadioButtons
-4. Add clipboard support
-5. Port additional examples (e.g., fileview, tvdemo)
+1. Fix Alt-X not working using the keyboard in the example Hello program (however clicking Alt-X in the statusbar works)
+2. Implement TFrame mouse handling (drag to move/resize windows)
+3. Implement TInputLine text input control
+4. Implement TCheckBoxes and TRadioButtons
+5. Add clipboard support
+6. Port additional examples (e.g., fileview, tvdemo)
