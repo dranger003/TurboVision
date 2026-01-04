@@ -627,72 +627,34 @@ public class TView : TObject
     }
 
     // Writing to screen
+    /// <summary>
+    /// Writes a single line to the view using the hierarchical write system.
+    /// This is the core write function that handles occlusion and shadow rendering.
+    /// </summary>
+    private void WriteView(int x, int y, int count, ReadOnlySpan<TScreenCell> buf)
+    {
+        var writer = new TVWrite(buf);
+        writer.L0(this, x, y, count);
+    }
+
+    /// <summary>
+    /// Writes a buffer of cells to the view at the specified position.
+    /// Uses hierarchical write system with occlusion detection and shadow support.
+    /// </summary>
     public void WriteBuf(int x, int y, int w, int h, ReadOnlySpan<TScreenCell> buf)
     {
-        // Get the clipping rectangle for this view
-        var clip = GetClipRect();
         if (w <= 0 || h <= 0)
         {
             return;
         }
 
-        // Convert local coordinates to global
-        var globalOrigin = MakeGlobal(new TPoint(x, y));
-
-        // Clip against the view's clip rectangle
-        int srcX = 0;
-        int srcY = 0;
-        int dstX = globalOrigin.X;
-        int dstY = globalOrigin.Y;
-        int clipW = w;
-        int clipH = h;
-
-        // Left clipping
-        if (x < clip.A.X)
+        // Write each line using the hierarchical write system
+        for (int row = 0; row < h; row++)
         {
-            srcX = clip.A.X - x;
-            dstX = MakeGlobal(new TPoint(clip.A.X, 0)).X;
-            clipW -= srcX;
-        }
-
-        // Top clipping
-        if (y < clip.A.Y)
-        {
-            srcY = clip.A.Y - y;
-            dstY = MakeGlobal(new TPoint(0, clip.A.Y)).Y;
-            clipH -= srcY;
-        }
-
-        // Right clipping
-        if (x + w > clip.B.X)
-        {
-            clipW = clip.B.X - x - srcX;
-        }
-
-        // Bottom clipping
-        if (y + h > clip.B.Y)
-        {
-            clipH = clip.B.Y - y - srcY;
-        }
-
-        if (clipW <= 0 || clipH <= 0)
-        {
-            return;
-        }
-
-        var driver = TScreen.Driver;
-        if (driver == null)
-        {
-            return;
-        }
-
-        // Write each clipped line
-        for (int row = 0; row < clipH; row++)
-        {
-            int srcOffset = (srcY + row) * w + srcX;
-            if (srcOffset + clipW <= buf.Length)
+            int srcOffset = row * w;
+            if (srcOffset + w <= buf.Length)
             {
-                driver.WriteBuffer(dstX, dstY + row, clipW, 1, buf.Slice(srcOffset, clipW));
+                WriteView(x, y + row, w, buf.Slice(srcOffset, w));
             }
         }
     }
@@ -715,7 +677,7 @@ public class TView : TObject
         {
             cells[i] = new TScreenCell(c, attr);
         }
-        WriteBuf(x, y, count, 1, cells);
+        WriteView(x, y, count, cells);
     }
 
     public void WriteStr(int x, int y, string str, byte color)
@@ -731,7 +693,7 @@ public class TView : TObject
         {
             cells[i] = new TScreenCell(str[i], attr);
         }
-        WriteBuf(x, y, str.Length, 1, cells);
+        WriteView(x, y, str.Length, cells);
     }
 
     public void WriteLine(int x, int y, int w, int h, TDrawBuffer buf)
@@ -742,9 +704,10 @@ public class TView : TObject
     public void WriteLine(int x, int y, int w, int h, ReadOnlySpan<TScreenCell> buf)
     {
         // WriteLine writes the same buffer to multiple lines
+        int count = Math.Min(w, buf.Length);
         for (int row = 0; row < h; row++)
         {
-            WriteBuf(x, y + row, w, 1, buf.Slice(0, Math.Min(w, buf.Length)));
+            WriteView(x, y + row, count, buf);
         }
     }
 
