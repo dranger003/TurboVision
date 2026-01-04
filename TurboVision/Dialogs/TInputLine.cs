@@ -5,7 +5,7 @@ using TurboVision.Views;
 namespace TurboVision.Dialogs;
 
 /// <summary>
-/// Single-line text input field.
+/// Single-line text input field with optional validation support.
 /// </summary>
 public class TInputLine : TView
 {
@@ -31,11 +31,28 @@ public class TInputLine : TView
 
     private int _anchor;
 
-    public TInputLine(TRect bounds, int limit, ushort limitMode = ilMaxBytes) : base(bounds)
+    // Validator support
+    private TValidator? _validator;
+
+    // Saved state for validation rollback
+    private string _oldData = "";
+    private int _oldCurPos;
+    private int _oldFirstPos;
+    private int _oldSelStart;
+    private int _oldSelEnd;
+
+    public TInputLine(TRect bounds, int limit, ushort limitMode = ilMaxBytes)
+        : this(bounds, limit, null, limitMode)
+    {
+    }
+
+    public TInputLine(TRect bounds, int limit, TValidator? validator, ushort limitMode = ilMaxBytes)
+        : base(bounds)
     {
         MaxLen = limitMode == ilMaxBytes ? Math.Min(Math.Max(limit - 1, 0), int.MaxValue - 1) : 255;
         MaxWidth = limitMode == ilMaxWidth ? limit : int.MaxValue;
         MaxChars = limitMode == ilMaxChars ? limit : int.MaxValue;
+        _validator = validator;
 
         State |= StateFlags.sfCursorVis;
         Options |= OptionFlags.ofSelectable | OptionFlags.ofFirstClick;
@@ -43,7 +60,20 @@ public class TInputLine : TView
 
     public override int DataSize()
     {
-        return MaxLen + 1;
+        int dSize = 0;
+
+        if (_validator != null)
+        {
+            string temp = Data;
+            dSize = _validator.Transfer(ref temp, [], TVTransfer.vtDataSize);
+        }
+
+        if (dSize == 0)
+        {
+            dSize = MaxLen + 1;
+        }
+
+        return dSize;
     }
 
     private bool CanScroll(int delta)
@@ -148,6 +178,77 @@ public class TInputLine : TView
         return s.Length;
     }
 
+    /// <summary>
+    /// Saves the current state for potential rollback during validation.
+    /// </summary>
+    private void SaveState()
+    {
+        if (_validator != null)
+        {
+            _oldData = Data;
+            _oldCurPos = CurPos;
+            _oldFirstPos = FirstPos;
+            _oldSelStart = SelStart;
+            _oldSelEnd = SelEnd;
+        }
+    }
+
+    /// <summary>
+    /// Restores the previously saved state (used when validation fails).
+    /// </summary>
+    private void RestoreState()
+    {
+        if (_validator != null)
+        {
+            Data = _oldData;
+            CurPos = _oldCurPos;
+            FirstPos = _oldFirstPos;
+            SelStart = _oldSelStart;
+            SelEnd = _oldSelEnd;
+        }
+    }
+
+    /// <summary>
+    /// Validates the current input using the validator.
+    /// If validation fails, the state is restored to the previous valid state.
+    /// </summary>
+    /// <param name="noAutoFill">If true, suppresses auto-fill behavior.</param>
+    /// <returns>True if valid or no validator, false if invalid.</returns>
+    private bool CheckValid(bool noAutoFill)
+    {
+        if (_validator == null)
+        {
+            return true;
+        }
+
+        int oldLen = Data.Length;
+        string newData = Data;
+
+        if (!_validator.IsValidInput(ref newData, noAutoFill))
+        {
+            RestoreState();
+            return false;
+        }
+
+        // Apply any modifications from the validator (e.g., auto-fill)
+        int newLen = newData.Length;
+        if (newLen > MaxLen)
+        {
+            newData = newData.Substring(0, MaxLen);
+            newLen = MaxLen;
+        }
+
+        Data = newData;
+
+        // Adjust cursor position if auto-fill added characters
+        if (CurPos >= oldLen && newLen > oldLen)
+        {
+            CurPos = newLen;
+        }
+
+        return true;
+    }
+
     public override void Draw()
     {
         var b = new TDrawBuffer();
@@ -202,6 +303,18 @@ public class TInputLine : TView
 
     public override void GetData(Span<byte> rec)
     {
+        // Try validator transfer first
+        if (_validator != null)
+        {
+            string temp = Data;
+            int transferred = _validator.Transfer(ref temp, rec, TVTransfer.vtGetData);
+            if (transferred != 0)
+            {
+                return;
+            }
+        }
+
+        // Default: copy string data
         var bytes = System.Text.Encoding.UTF8.GetBytes(Data);
         int copyLen = Math.Min(bytes.Length, rec.Length - 1);
         bytes.AsSpan(0, copyLen).CopyTo(rec);
@@ -240,6 +353,7 @@ public class TInputLine : TView
                 {
                     case CommandConstants.cmPaste:
                         {
+                            SaveState();
                             string clipText = TClipboard.GetText();
                             if (clipText.Length > 0)
                             {
@@ -253,16 +367,20 @@ public class TInputLine : TView
                                     }
                                 }
 
-                                // Insert the clipboard text
-                                int insertLen = Math.Min(clipText.Length, MaxLen - Data.Length);
-                                if (insertLen > 0)
+                                if (CheckValid(true))
                                 {
-                                    if (FirstPos > CurPos)
+                                    // Insert the clipboard text
+                                    int insertLen = Math.Min(clipText.Length, MaxLen - Data.Length);
+                                    if (insertLen > 0)
                                     {
-                                        FirstPos = CurPos;
+                                        if (FirstPos > CurPos)
+                                        {
+                                            FirstPos = CurPos;
+                                        }
+                                        Data = Data.Insert(CurPos, clipText.Substring(0, insertLen));
+                                        CurPos += insertLen;
                                     }
-                                    Data = Data.Insert(CurPos, clipText.Substring(0, insertLen));
-                                    CurPos += insertLen;
+                                    CheckValid(false);
                                 }
 
                                 SelStart = 0;
@@ -280,7 +398,9 @@ public class TInputLine : TView
                             TClipboard.SetText(Data.AsSpan(SelStart, SelEnd - SelStart));
                             if (ev.Message.Command == CommandConstants.cmCut)
                             {
+                                SaveState();
                                 DeleteSelect();
+                                CheckValid(true);
                                 SelStart = 0;
                                 SelEnd = 0;
                                 DrawView();
@@ -335,6 +455,7 @@ public class TInputLine : TView
 
     private void HandleKeyDown(ref TEvent ev)
     {
+        SaveState();
         bool extendBlock = false;
         ushort keyCode = TStringUtils.CtrlToArrow(ev.KeyDown.KeyCode);
 
@@ -402,6 +523,7 @@ public class TInputLine : TView
                     }
                 }
                 DeleteSelect();
+                CheckValid(true);
                 break;
 
             case KeyConstants.kbCtrlBack:
@@ -412,6 +534,7 @@ public class TInputLine : TView
                     SelEnd = CurPos;
                 }
                 DeleteSelect();
+                CheckValid(true);
                 break;
 
             case KeyConstants.kbDel:
@@ -423,6 +546,7 @@ public class TInputLine : TView
                 {
                     DeleteSelect();
                 }
+                CheckValid(true);
                 break;
 
             case KeyConstants.kbCtrlDel:
@@ -432,6 +556,7 @@ public class TInputLine : TView
                     SelEnd = NextWord(Data, CurPos);
                 }
                 DeleteSelect();
+                CheckValid(true);
                 break;
 
             case KeyConstants.kbIns:
@@ -449,15 +574,25 @@ public class TInputLine : TView
                         DeleteCurrent();
                     }
 
-                    // Check limits
-                    if (Data.Length < MaxLen && Data.Length < MaxWidth && Data.Length < MaxChars)
+                    if (CheckValid(true))
                     {
-                        if (FirstPos > CurPos)
+                        // Replace tabs and newlines with spaces
+                        if (ch == '\t' || ch == '\r' || ch == '\n')
                         {
-                            FirstPos = CurPos;
+                            ch = ' ';
                         }
-                        Data = Data.Insert(CurPos, ch.ToString());
-                        CurPos++;
+
+                        // Check limits
+                        if (Data.Length < MaxLen && Data.Length < MaxWidth && Data.Length < MaxChars)
+                        {
+                            if (FirstPos > CurPos)
+                            {
+                                FirstPos = CurPos;
+                            }
+                            Data = Data.Insert(CurPos, ch.ToString());
+                            CurPos++;
+                        }
+                        CheckValid(false);
                     }
                 }
                 else if (ev.KeyDown.CharCode == 25) // Ctrl+Y - clear line
@@ -521,7 +656,22 @@ public class TInputLine : TView
 
     public override void SetData(ReadOnlySpan<byte> rec)
     {
-        // Find null terminator or use entire span
+        // Try validator transfer first
+        if (_validator != null)
+        {
+            string temp = Data;
+            // Need to convert ReadOnlySpan to Span for the transfer method
+            byte[] buffer = rec.ToArray();
+            int transferred = _validator.Transfer(ref temp, buffer, TVTransfer.vtSetData);
+            if (transferred != 0)
+            {
+                Data = temp;
+                SelectAll(true);
+                return;
+            }
+        }
+
+        // Default: parse as string
         int len = rec.IndexOf((byte)0);
         if (len < 0)
         {
@@ -543,8 +693,40 @@ public class TInputLine : TView
         }
     }
 
+    /// <summary>
+    /// Sets or replaces the validator for this input line.
+    /// </summary>
+    /// <param name="validator">The new validator, or null to remove validation.</param>
+    public void SetValidator(TValidator? validator)
+    {
+        _validator?.Dispose();
+        _validator = validator;
+    }
+
     public override bool Valid(ushort cmd)
     {
+        if (_validator != null)
+        {
+            if (cmd == CommandConstants.cmValid)
+            {
+                return _validator.Status == ValidatorStatus.vsOk;
+            }
+            else if (cmd != CommandConstants.cmCancel)
+            {
+                if (!_validator.Validate(Data))
+                {
+                    Select();
+                    return false;
+                }
+            }
+        }
         return true;
+    }
+
+    public override void ShutDown()
+    {
+        _validator?.Dispose();
+        _validator = null;
+        base.ShutDown();
     }
 }
