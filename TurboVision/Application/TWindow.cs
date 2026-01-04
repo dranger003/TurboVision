@@ -45,6 +45,7 @@ public class TWindow : TGroup
     {
         if (Valid(CommandConstants.cmClose))
         {
+            Frame = null; // so we don't try to use the frame after it's been deleted
             Owner?.Remove(this);
             Dispose();
         }
@@ -73,24 +74,42 @@ public class TWindow : TGroup
         {
             switch (ev.Message.Command)
             {
+                case CommandConstants.cmResize:
+                    if ((Flags & (WindowFlags.wfMove | WindowFlags.wfGrow)) != 0)
+                    {
+                        if (Owner != null)
+                        {
+                            var limits = Owner.GetExtent();
+                            SizeLimits(out var min, out var max);
+                            DragView(ev, (byte)(DragMode | (Flags & (WindowFlags.wfMove | WindowFlags.wfGrow))),
+                                limits, min, max);
+                        }
+                        ClearEvent(ref ev);
+                    }
+                    break;
                 case CommandConstants.cmClose:
-                    if ((Flags & WindowFlags.wfClose) != 0)
+                    if ((Flags & WindowFlags.wfClose) != 0 &&
+                        (ev.Message.InfoPtr == null || ReferenceEquals(ev.Message.InfoPtr, this)))
                     {
                         ClearEvent(ref ev);
-                        Close();
+                        if ((State & StateFlags.sfModal) == 0)
+                        {
+                            Close();
+                        }
+                        else
+                        {
+                            ev.What = EventConstants.evCommand;
+                            ev.Message.Command = CommandConstants.cmCancel;
+                            PutEvent(ev);
+                            ClearEvent(ref ev);
+                        }
                     }
                     break;
                 case CommandConstants.cmZoom:
-                    if ((Flags & WindowFlags.wfZoom) != 0)
+                    if ((Flags & WindowFlags.wfZoom) != 0 &&
+                        (ev.Message.InfoPtr == null || ReferenceEquals(ev.Message.InfoPtr, this)))
                     {
-                        ClearEvent(ref ev);
                         Zoom();
-                    }
-                    break;
-                case CommandConstants.cmResize:
-                    if ((Flags & WindowFlags.wfGrow) != 0)
-                    {
-                        // TODO: Implement resize
                         ClearEvent(ref ev);
                     }
                     break;
@@ -98,7 +117,27 @@ public class TWindow : TGroup
         }
         else if (ev.What == EventConstants.evKeyDown)
         {
-            // TODO: Handle keyboard shortcuts
+            switch (ev.KeyDown.KeyCode)
+            {
+                case KeyConstants.kbTab:
+                    FocusNext(false);
+                    ClearEvent(ref ev);
+                    break;
+                case KeyConstants.kbShiftTab:
+                    FocusNext(true);
+                    ClearEvent(ref ev);
+                    break;
+            }
+        }
+        else if (ev.What == EventConstants.evBroadcast)
+        {
+            if (ev.Message.Command == CommandConstants.cmSelectWindowNum &&
+                ev.Message.InfoInt == Number &&
+                (Options & OptionFlags.ofSelectable) != 0)
+            {
+                Select();
+                ClearEvent(ref ev);
+            }
         }
     }
 
@@ -110,6 +149,32 @@ public class TWindow : TGroup
         {
             SetState(StateFlags.sfActive, enable);
             Frame?.SetState(StateFlags.sfActive, enable);
+
+            var windowCommands = new TCommandSet();
+            windowCommands.EnableCmd(CommandConstants.cmNext);
+            windowCommands.EnableCmd(CommandConstants.cmPrev);
+
+            if ((Flags & (WindowFlags.wfGrow | WindowFlags.wfMove)) != 0)
+            {
+                windowCommands.EnableCmd(CommandConstants.cmResize);
+            }
+            if ((Flags & WindowFlags.wfClose) != 0)
+            {
+                windowCommands.EnableCmd(CommandConstants.cmClose);
+            }
+            if ((Flags & WindowFlags.wfZoom) != 0)
+            {
+                windowCommands.EnableCmd(CommandConstants.cmZoom);
+            }
+
+            if (enable)
+            {
+                EnableCommands(windowCommands);
+            }
+            else
+            {
+                DisableCommands(windowCommands);
+            }
         }
     }
 
@@ -144,17 +209,16 @@ public class TWindow : TGroup
 
     public virtual void Zoom()
     {
-        var r = ZoomRect;
-        if (Owner != null)
+        SizeLimits(out _, out var maxSize);
+        if (Size.X != maxSize.X || Size.Y != maxSize.Y)
         {
-            if (r.Equals(GetBounds()))
-            {
-                r = new TRect(0, 0, Owner.Size.X, Owner.Size.Y);
-            }
-            else
-            {
-                ZoomRect = GetBounds();
-            }
+            ZoomRect = GetBounds();
+            var r = new TRect(0, 0, maxSize.X, maxSize.Y);
+            Locate(ref r);
+        }
+        else
+        {
+            var r = ZoomRect;
             Locate(ref r);
         }
     }
