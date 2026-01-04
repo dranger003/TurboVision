@@ -23,6 +23,10 @@ dotnet build
 dotnet run --project Examples/Hello/Hello.csproj
 ```
 
+## Build Notes
+
+- **Do NOT specify platform-specific configurations** like `Debug|x64` or `/p:Platform=x64`. This solution only supports `Any CPU`. Use the simple commands above without platform arguments, or if you must specify: `/p:Platform="Any CPU"`.
+
 ## Guidelines
 
 - Follow `Reference/SOURCE.md` for upstream source quick reference
