@@ -25,6 +25,10 @@ public class TWindow : TGroup
         Title = title;
         Number = number;
         Options |= OptionFlags.ofSelectable | OptionFlags.ofTopSelect;
+        // Disable buffering until WriteBuf properly supports buffer hierarchy
+        // (child views writing to parent's buffer). Without this, buffers don't
+        // get populated and the window appears all black.
+        Options &= unchecked((ushort)~OptionFlags.ofBuffered);
         State |= StateFlags.sfShadow;
         GrowMode = GrowFlags.gfGrowAll | GrowFlags.gfGrowRel;
         ZoomRect = bounds;
