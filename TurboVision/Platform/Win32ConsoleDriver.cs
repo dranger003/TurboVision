@@ -317,7 +317,7 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
         switch (ir.EventType)
         {
             case KEY_EVENT:
-                if (ir.KeyEvent.bKeyDown || (ir.KeyEvent.wVirtualKeyCode == VK_MENU && ir.KeyEvent.UnicodeChar != 0))
+                if (ir.KeyEvent.bKeyDown != 0 || (ir.KeyEvent.wVirtualKeyCode == VK_MENU && ir.KeyEvent.UnicodeChar != 0))
                 {
                     return ProcessKeyEvent(ref ir.KeyEvent, out ev);
                 }
@@ -599,14 +599,20 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
         public WINDOW_BUFFER_SIZE_RECORD WindowBufferSizeEvent;
     }
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode)]
     private struct KEY_EVENT_RECORD
     {
-        public bool bKeyDown;
+        [FieldOffset(0)]
+        public int bKeyDown;  // Win32 BOOL is 4 bytes
+        [FieldOffset(4)]
         public ushort wRepeatCount;
+        [FieldOffset(6)]
         public ushort wVirtualKeyCode;
+        [FieldOffset(8)]
         public ushort wVirtualScanCode;
+        [FieldOffset(10)]
         public char UnicodeChar;
+        [FieldOffset(12)]
         public uint dwControlKeyState;
     }
 
