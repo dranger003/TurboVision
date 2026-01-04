@@ -165,12 +165,34 @@ public class TProgram : TGroup
             }
         }
 
+        // Forward key events and mouse events over the status line directly to it.
+        // This allows the status line to respond even during modal dialog execution.
+        if (StatusLine != null)
+        {
+            if ((ev.What & EventConstants.evKeyDown) != 0 ||
+                ((ev.What & EventConstants.evMouseDown) != 0 &&
+                 FirstThat(ViewHasMouse, ev) == StatusLine))
+            {
+                StatusLine.HandleEvent(ref ev);
+            }
+        }
+
         // Handle screen resize events
         if (ev.What == EventConstants.evCommand && ev.Message.Command == CommandConstants.cmScreenChanged)
         {
             SetScreenMode(TDisplay.smUpdate);
             ClearEvent(ref ev);
         }
+    }
+
+    /// <summary>
+    /// Helper predicate for finding a view under the mouse cursor.
+    /// Matches upstream viewHasMouse function.
+    /// </summary>
+    private static bool ViewHasMouse(TView view, object? args)
+    {
+        var ev = (TEvent)args!;
+        return view.GetState(StateFlags.sfVisible) && view.MouseInView(ev.Mouse.Where);
     }
 
     /// <summary>
