@@ -81,10 +81,12 @@ public class TButton : TView
 
         int s = Size.X - 1;
         int titleY = Size.Y / 2 - 1;
+        char ch = ' ';
 
         // Draw each row of the button
         for (int y = 0; y <= Size.Y - 2; y++)
         {
+            int i;
             b.MoveChar(0, ' ', cButton.Normal, Size.X);
             b.PutAttribute(0, cShadow);
 
@@ -92,16 +94,18 @@ public class TButton : TView
             {
                 // When pressed, shift button right
                 b.PutAttribute(1, cShadow);
-                if (y == titleY && Title != null)
-                {
-                    DrawTitle(b, s, 2, cButton, down);
-                }
+                ch = ' ';
+                i = 2;
             }
             else
             {
                 // Normal state - shadow on right side
                 b.PutAttribute(s, cShadow);
-                if (!ShowMarkers)
+                if (ShowMarkers)
+                {
+                    ch = ' ';
+                }
+                else
                 {
                     if (y == 0)
                     {
@@ -111,17 +115,20 @@ public class TButton : TView
                     {
                         b.PutChar(s, ShadowRight);
                     }
+                    ch = ShadowBottom;
                 }
-                if (y == titleY && Title != null)
-                {
-                    DrawTitle(b, s, 1, cButton, down);
-                }
+                i = 1;
+            }
 
-                if (ShowMarkers && !down)
-                {
-                    b.PutChar(1, '[');
-                    b.PutChar(s - 1, ']');
-                }
+            if (y == titleY && Title != null)
+            {
+                DrawTitle(b, s, i, cButton, down);
+            }
+
+            if (ShowMarkers && !down)
+            {
+                b.PutChar(1, '[');
+                b.PutChar(s - 1, ']');
             }
 
             WriteLine(0, y, Size.X, 1, b);
@@ -129,7 +136,7 @@ public class TButton : TView
 
         // Draw bottom shadow row
         b.MoveChar(0, ' ', cShadow, 2);
-        b.MoveChar(2, ShowMarkers ? ' ' : ShadowBottom, cShadow, s - 1);
+        b.MoveChar(2, ch, cShadow, s - 1);
         WriteLine(0, Size.Y - 1, Size.X, 1, b);
     }
 
