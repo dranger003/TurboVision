@@ -9,7 +9,7 @@ namespace TurboVision.Menus;
 public class TStatusLine : TView
 {
     private static readonly byte[] DefaultPalette = [0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
-    private const string HintSeparator = " │ ";
+    private const string HintSeparator = "│ ";  // Vertical bar + space
 
     protected TStatusItem? Items { get; set; }
     protected TStatusDef? Defs { get; set; }
@@ -92,9 +92,9 @@ public class TStatusLine : TView
         }
     }
 
-    public virtual string? Hint(ushort helpCtx)
+    public virtual string Hint(ushort helpCtx)
     {
-        return null;
+        return string.Empty;
     }
 
     public void Update()
@@ -142,7 +142,17 @@ public class TStatusLine : TView
             item = item.Next;
         }
 
-        // TODO: Add hint text if space available
+        // Add hint text if space available
+        if (x < Size.X - 2)
+        {
+            var hintText = Hint(HelpCtx);
+            if (!string.IsNullOrEmpty(hintText))
+            {
+                b.MoveStr(x, HintSeparator, cNormal.Normal);
+                x += HintSeparator.Length;
+                b.MoveStr(x, hintText, cNormal.Normal, Size.X - x);
+            }
+        }
 
         WriteBuf(0, 0, Size.X, Size.Y, b);
     }
