@@ -21,6 +21,7 @@ public static class TStringUtils
 
     /// <summary>
     /// Returns the display length of a string, excluding ~tilde~ markers.
+    /// Equivalent to upstream cstrlen().
     /// </summary>
     public static int CstrLen(ReadOnlySpan<char> s)
     {
@@ -33,6 +34,70 @@ public static class TStringUtils
             }
         }
         return len;
+    }
+
+    /// <summary>
+    /// Returns the display width of a string, accounting for multi-byte and wide characters.
+    /// Equivalent to upstream strwidth().
+    /// For ASCII text, this equals the string length.
+    /// For CJK and other wide characters, each character counts as 2 cells.
+    /// </summary>
+    public static int StrWidth(ReadOnlySpan<char> s)
+    {
+        int width = 0;
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+
+            // Handle surrogate pairs (supplementary characters)
+            if (char.IsHighSurrogate(c) && i + 1 < s.Length && char.IsLowSurrogate(s[i + 1]))
+            {
+                // Most supplementary characters (emoji, etc.) are wide
+                width += 2;
+                i++; // Skip the low surrogate
+                continue;
+            }
+
+            // Check for wide characters (CJK, full-width, etc.)
+            if (IsWideCharacter(c))
+            {
+                width += 2;
+            }
+            else
+            {
+                width += 1;
+            }
+        }
+        return width;
+    }
+
+    /// <summary>
+    /// Determines if a character is a "wide" character that takes 2 cells in a terminal.
+    /// This includes CJK characters, full-width forms, and certain other Unicode ranges.
+    /// </summary>
+    private static bool IsWideCharacter(char c)
+    {
+        // CJK Unified Ideographs and related blocks
+        if (c >= 0x4E00 && c <= 0x9FFF) return true;  // CJK Unified Ideographs
+        if (c >= 0x3400 && c <= 0x4DBF) return true;  // CJK Unified Ideographs Extension A
+        if (c >= 0xF900 && c <= 0xFAFF) return true;  // CJK Compatibility Ideographs
+
+        // Full-width ASCII variants and symbols
+        if (c >= 0xFF00 && c <= 0xFF60) return true;  // Full-width ASCII
+        if (c >= 0xFFE0 && c <= 0xFFE6) return true;  // Full-width currency/symbols
+
+        // Hiragana and Katakana
+        if (c >= 0x3040 && c <= 0x309F) return true;  // Hiragana
+        if (c >= 0x30A0 && c <= 0x30FF) return true;  // Katakana
+
+        // Korean Hangul
+        if (c >= 0xAC00 && c <= 0xD7AF) return true;  // Hangul Syllables
+        if (c >= 0x1100 && c <= 0x11FF) return true;  // Hangul Jamo
+
+        // Other CJK punctuation and symbols
+        if (c >= 0x3000 && c <= 0x303F) return true;  // CJK Symbols and Punctuation
+
+        return false;
     }
 
     /// <summary>
