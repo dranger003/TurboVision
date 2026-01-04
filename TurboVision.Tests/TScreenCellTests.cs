@@ -215,10 +215,12 @@ public class TScreenCellTests
     [TestMethod]
     public void TColorAttr_ShouldHaveExpectedSize()
     {
-        // C# TColorAttr uses uint internally (4 bytes)
-        // Note: C++ uses 8 bytes due to 64-bit alignment
+        // TColorAttr uses 64-bit storage to match upstream:
+        // - 10 bits for style flags
+        // - 27 bits for foreground (TColorDesired)
+        // - 27 bits for background (TColorDesired)
         int size = Marshal.SizeOf<TColorAttr>();
-        Assert.AreEqual(4, size, "TColorAttr should be 4 bytes (uint)");
+        Assert.AreEqual(8, size, "TColorAttr should be 8 bytes (ulong)");
     }
 
     [TestMethod]
