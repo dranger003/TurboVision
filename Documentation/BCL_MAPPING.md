@@ -51,8 +51,333 @@ Guide for deciding when to use .NET BCL types vs. porting upstream C++ implement
 | Upstream | BCL | Files Using |
 |----------|-----|-------------|
 | Platform timers | `Stopwatch` | TTimerQueue.cs:32 |
-| File operations | `FileStream`, `Path` | (Phase 8) |
+| File operations | `FileStream`, `Path` | See File Operations section below |
 | Error codes | Exceptions | Various |
+
+### File Operations (Priority 3)
+
+Comprehensive mappings for file dialogs, directory dialogs, and path utilities.
+
+#### Core File Types
+
+| C++ Type | BCL Mapping | Notes |
+|----------|-------------|-------|
+| `TSearchRec` | `FileInfo` + custom struct | Holds attr, time, size, name |
+| `ffblk` / `find_t` | `FileInfo` | DOS find-first structures |
+| `TFileCollection` | `List<FileInfo>` | Sorted with custom comparator |
+| `TDirCollection` | `List<DirectoryInfo>` | Directory entry collection |
+| `TDirEntry` | `DirectoryInfo` wrapper | Display text + path |
+
+#### File Attribute Constants
+
+| C++ Constant | BCL Mapping |
+|--------------|-------------|
+| `FA_RDONLY` | `FileAttributes.ReadOnly` |
+| `FA_HIDDEN` | `FileAttributes.Hidden` |
+| `FA_SYSTEM` | `FileAttributes.System` |
+| `FA_DIREC` | `FileAttributes.Directory` |
+| `FA_ARCH` | `FileAttributes.Archive` |
+
+#### Path Utility Functions
+
+| C++ Function | BCL Mapping |
+|--------------|-------------|
+| `fnsplit()` | `Path.GetDirectoryName()`, `Path.GetFileName()`, `Path.GetExtension()` |
+| `fnmerge()` | `Path.Combine()` |
+| `fexpand()` | `Path.GetFullPath()` |
+| `squeeze()` | `Path.GetFullPath()` (implicit normalization) |
+| `driveValid()` | `DriveInfo.GetDrives()` + validation |
+| `isDir()` | `Directory.Exists()` |
+| `pathValid()` | `Directory.Exists()` |
+| `validFileName()` | `Path.GetInvalidFileNameChars()` check |
+| `getCurDir()` | `Directory.GetCurrentDirectory()` |
+| `isWild()` | `path.Contains('*') \|\| path.Contains('?')` |
+| `getHomeDir()` | `Environment.GetFolderPath(SpecialFolder.UserProfile)` |
+
+#### File Enumeration
+
+| C++ Pattern | BCL Mapping |
+|-------------|-------------|
+| `findfirst()` / `findnext()` | `Directory.EnumerateFiles()` / `EnumerateDirectories()` |
+| Directory walk with ".." | `DirectoryInfo.Parent` + `EnumerateDirectories()` |
+| Attribute filtering | `FileInfo.Attributes.HasFlag()` |
+
+#### Cross-Platform Path Handling
+
+| C++ Function | BCL Mapping | Notes |
+|--------------|-------------|-------|
+| `path_dos2unix()` | `path.Replace('\\', '/')` | Rarely needed |
+| `path_unix2dos()` | `path.Replace('/', '\\')` | Rarely needed |
+| `isDriveLetter()` | `char.IsLetter()` | |
+
+### Editor Module (Priority 4)
+
+Mappings for TEditor, TMemo, TFileEditor, and related text editing components.
+
+#### Text Buffer Management
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `char *buffer` (gap buffer) | `StringBuilder` or custom `GapBuffer<char>` | StringBuilder uses similar internals |
+| `uint bufSize` | `StringBuilder.Capacity` | Auto-managed allocation |
+| `uint bufLen` | `StringBuilder.Length` | Current content size |
+| `bufPtr(uint P)` | `StringBuilder[int]` indexer | Gap-aware access |
+
+#### Selection & Clipboard
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `uint selStart, selEnd` | `(int, int)` tuple or `Range` | Selection range |
+| `TEditor *clipboard` | `System.Windows.Forms.Clipboard` or `TextCopy` | Cross-platform clipboard |
+| `clipCopy()` / `clipCut()` / `clipPaste()` | `Clipboard.SetText()` / `GetText()` | System clipboard ops |
+
+#### Undo/Redo
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `delCount`, `insCount` tracking | `Stack<EditAction>` | Command pattern |
+| `undo()` function | `UndoManager.Undo()` | Stack-based undo |
+| Lock/unlock batching | `IDisposable` pattern | Group edits into single undo |
+
+#### Text Encoding & EOL
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `enum Encoding` | `System.Text.Encoding` | `UTF8`, `GetEncoding(850)` for DOS |
+| `enum EolType` | Custom enum | `CRLF`, `LF`, `CR` detection |
+| `detectEol()` | `string.Contains("\r\n")` checks | Auto-detect line endings |
+
+#### Line & Column Tracking
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `TPoint curPos` | `(int line, int column)` tuple | Cursor position |
+| `uint curPtr` | `int` | Linear buffer offset |
+| `lineStart()` / `lineEnd()` | `string.LastIndexOf('\n')` / `IndexOf('\n')` | Line boundaries |
+| `nextWord()` / `prevWord()` | `char.IsWhiteSpace()` + scanner | Word boundary detection |
+
+#### Search & Replace
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `search()` function | `string.IndexOf()` or `Regex.Match()` | Built-in search |
+| `efCaseSensitive` | `StringComparison.Ordinal` vs `OrdinalIgnoreCase` | Case handling |
+| `efWholeWordsOnly` | `Regex` with `\b` | Word boundary matching |
+| `efReplaceAll` | `string.Replace()` or `Regex.Replace()` | Bulk replacement |
+
+#### File I/O
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `char fileName[MAXPATH]` | `string` | Unlimited length |
+| `ifstream` / `ofstream` | `FileStream` or `File.ReadAllBytes()` | Binary I/O |
+| `loadFile()` / `saveFile()` | `File.ReadAllBytes()` / `WriteAllBytes()` | Bulk file ops |
+
+#### Terminal Output (TTerminal)
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `TTextDevice` | Stream-like interface | Abstract output |
+| Circular buffer | Custom `RingBuffer<char>` | Fixed-size wrap |
+| `queFront`, `queBack` | `int headIndex, tailIndex` | Ring buffer pointers |
+
+### Collections Framework (Priority 5)
+
+Mappings for TNSCollection, TSortedCollection, TStringCollection, and resource management.
+
+#### Core Collection Types
+
+| C++ Type | BCL Mapping | Notes |
+|----------|-------------|-------|
+| `TNSCollection` | `List<T>` | Dynamic array, generic |
+| `TNSSortedCollection` | `SortedSet<T>` or `SortedList<K,V>` | Binary search, O(log n) |
+| `TCollection` | `List<T>` + `IStreamable` | Serializable wrapper |
+| `TSortedCollection` | `SortedSet<T>` + `IStreamable` | Serializable sorted |
+| `TStringCollection` | `SortedSet<string>` | String storage |
+
+#### Collection Methods
+
+| C++ Method | BCL Mapping | Notes |
+|------------|-------------|-------|
+| `at(index)` | `List<T>[index]` | Direct indexing |
+| `indexOf(item)` | `List<T>.IndexOf()` | Linear search |
+| `insert(item)` | `List<T>.Add()` or `Insert()` | Append/insert |
+| `freeAll()` | `List<T>.Clear()` + GC | Dispose pattern |
+| `pack()` | `List<T>.RemoveAll(x => x == null)` | Compaction |
+| `search(key, index)` | `SortedSet<T>.TryGetValue()` | Binary search |
+| `compare()` virtual | `IComparer<T>` interface | Custom ordering |
+
+#### Resource Management
+
+| C++ Type | BCL Mapping | Notes |
+|----------|-------------|-------|
+| `TResourceItem` | `struct { string key; int pos; int size; }` | Resource metadata |
+| `TResourceCollection` | `SortedDictionary<string, ResourceEntry>` | Resource index |
+| `TResourceFile` | Custom file-based manager | Resource persistence |
+| `TStringList` | `ImmutableDictionary<ushort, string>` | Read-only string table |
+| `TStrListMaker` | `Dictionary<ushort, string>` builder | String table builder |
+
+### Platform Completeness (Priority 6)
+
+Mappings for screen capabilities, damage tracking, clipboard, and Unicode handling.
+
+#### Screen Capability Detection
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `GetConsoleMode()` / `SetConsoleMode()` | P/Invoke | Windows API |
+| `ENABLE_VIRTUAL_TERMINAL_PROCESSING` | `0x0004` constant | ANSI support detection |
+| Wine detection | P/Invoke `wine_get_version` | Runtime detection |
+| Color mode capability | Cached bool property | Terminal ANSI check |
+
+#### Damage Tracking
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `std::vector<DamageRange>` | `List<(int min, int max)>` | Per-row dirty rectangles |
+| `WINDOW_BUFFER_SIZE_RECORD` | Console event polling | Size change detection |
+
+#### Clipboard Integration
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| Windows clipboard | `System.Windows.Forms.Clipboard` | Add WinForms ref |
+| Unix clipboard detection | `Environment.GetEnvironmentVariable()` | Check `WAYLAND_DISPLAY`, `DISPLAY` |
+| Process spawning | `System.Diagnostics.Process` | `xclip`, `wl-copy` subprocess |
+| Pipe communication | `StreamReader` / `StreamWriter` | Redirected I/O |
+
+#### UTF-16 Surrogate Handling
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| Manual surrogate detection | `System.Char.IsSurrogatePair()` | Built-in check |
+| UTF-16 → UTF-8 | `System.Text.Encoding.UTF8.GetBytes()` | Auto handles surrogates |
+| Codepoint reconstruction | `System.Text.Rune(char, char)` | `new Rune(lead, trail)` |
+| Width calculation | `System.Globalization.StringInfo` | Grapheme clusters |
+
+### Serialization (Priority 7)
+
+Mappings for TStreamable, pstream hierarchy, and object persistence.
+
+#### Stream Class Hierarchy
+
+| C++ Class | BCL Mapping | Notes |
+|-----------|-------------|-------|
+| `pstream` | Abstract `IStream` interface | Base state machine |
+| `ipstream` | `BinaryReader` | Input stream |
+| `opstream` | `BinaryWriter` | Output stream |
+| `iopstream` | `BinaryReader` + `BinaryWriter` | Bidirectional |
+| `ifpstream` | `BinaryReader(FileStream)` | File input |
+| `ofpstream` | `BinaryWriter(FileStream)` | File output |
+| `fpstream` | Dual reader/writer on `FileStream` | File bidirectional |
+
+#### TStreamable Interface
+
+| C++ Concept | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `TStreamable` base | `interface IStreamable` | Serialization contract |
+| `streamableName()` | `string TypeId` property | Type identifier |
+| `write(opstream&)` | `void Write(IStreamWriter)` | Serialize state |
+| `read(ipstream&)` | `void Read(IStreamReader)` | Deserialize state |
+| `RegisterType()` macro | `IStreamSerializer.Register<T>()` | Type registration |
+
+#### Type Registry & Object Tracking
+
+| C++ Component | BCL Mapping | Notes |
+|---------------|-------------|-------|
+| `TStreamableTypes` | `Dictionary<string, Type>` | Type name → factory |
+| `TStreamableClass` | `TypeMetadata` record | Name + builder |
+| `TPWrittenObjects` | `Dictionary<nint, uint>` | Output object tracking |
+| `TPReadObjects` | `List<object>` | Input object tracking |
+
+#### Primitive Serialization
+
+| C++ Type | BCL Method | Bytes |
+|----------|------------|-------|
+| `uchar` | `BinaryWriter.Write(byte)` | 1 |
+| `ushort` / `short` | `BinaryWriter.Write(ushort)` | 2 |
+| `int` / `uint` | `BinaryWriter.Write(int)` | 4 |
+| `long` / `ulong` | `BinaryWriter.Write(long)` | 8 |
+| `char*` string | Length-prefixed UTF-8 | 1 + len |
+
+#### Pointer Serialization
+
+| Pointer Type | Format | Notes |
+|--------------|--------|-------|
+| Null | `[0]` discriminator | Null pointer |
+| Object | `[2][name][data][']'` | Inline new object |
+| Indexed | `[1][id as ushort]` | Reference existing |
+
+### Advanced Features (Priority 8)
+
+Mappings for outline views, color selector, and help system.
+
+#### Outline Views (TOutline)
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `TNode` linked list | Generic `TreeNode<T>` class | Next/child/parent pointers |
+| Tree traversal callbacks | `Action<TreeNode>` delegates | Visitor pattern |
+| Recursive descent | `yield return` | LINQ-friendly iteration |
+| Tree drawing flags | `[Flags] enum` | `ovExpanded`, `ovChildren`, `ovLast` |
+| Line/level bit vectors | `long` or `BitArray` | Graph drawing state |
+| Graph string generation | `StringBuilder` | Tree branch chars (│├└─) |
+
+#### Color Selector (TColorDialog)
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `TColorItem` linked list | `List<ColorItem>` | Simpler as list |
+| `TColorGroup` grouping | Nested `List<ColorGroup>` | Hierarchical model |
+| Color grid (4x4) | 2D array or `byte[16]` | Mouse → color index |
+| Palette serialization | `BinaryWriter` / `BinaryReader` | Flatten to binary |
+
+#### Help System (THelpFile)
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `TParagraph` linked list | `List<Paragraph>` | Text wrapping at render |
+| `TCrossRef` array | `List<CrossRef>` | Offset + length + topic ID |
+| Help file format | `BinaryReader` / `BinaryWriter` | Custom binary (not .NET) |
+| Topic indexing | `Dictionary<int, long>` | Context ID → file offset |
+| Lazy loading | `Stream.Seek()` | Read topic on demand |
+| Topic navigation | `Stack<int>` | History for back button |
+
+### Cross-Platform (Priority 9)
+
+Mappings for Linux/ncurses and ANSI terminal drivers.
+
+#### ncurses Driver
+
+| ncurses API | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `newterm()` | P/Invoke wrapper | Create terminal |
+| `SCREEN *` | `nint` | Opaque handle |
+| `has_colors()` | P/Invoke `tigetnum("colors")` | Color capability |
+| `start_color()` | ANSI sequences fallback | `\x1b[39m` default |
+| `resize_term()` | SIGWINCH handler or polling | Size changes |
+| `curs_set()` | VT sequences | `\x1b[?25h/l` |
+
+#### ANSI Terminal Driver
+
+| ANSI Sequence | Purpose | Example |
+|---------------|---------|---------|
+| `\x1b[{r};{c}H` | Cursor position | `\x1b[10;5H` |
+| `\x1b[2J` | Clear screen | With `\x1b[H` for home |
+| `\x1b[K` | Clear to EOL | Erase rest of line |
+| `\x1b[?25h` / `\x1b[?25l` | Show/hide cursor | Visibility control |
+| `\x1b[{fg};{bg}m` | Set colors | `\x1b[31;44m` red on blue |
+| `\x1b[0m` | Reset attributes | Default colors |
+
+#### Platform Abstraction
+
+| C++ Pattern | BCL Mapping | Notes |
+|-------------|-------------|-------|
+| `Platform` singleton | `IPlatformDriver` interface | Abstract factory |
+| `Win32ConsoleAdapter` | `Win32ConsoleDriver` | P/Invoke kernel32 |
+| `NcursesDisplay` | `NcursesDriver` | P/Invoke libncurses |
+| `AnsiTerminalDriver` | Direct escape sequences | `System.Console` I/O |
+| Platform detection | `RuntimeInformation.IsOSPlatform()` | OS-specific driver |
 
 ## Extracted Decisions
 
