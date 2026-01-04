@@ -640,38 +640,38 @@ All dialog controls fully functional.
 
 ## Prioritized Next Steps
 
-### ~~Priority 1: Hierarchical WriteBuf~~ ⚠️ MOSTLY COMPLETE
+### Priority 1: Hierarchical WriteBuf ⚠️ MOSTLY COMPLETE
 TVWrite class implements core hierarchical write system. Remaining work:
 - [ ] Test L20 shadow region logic with overlapping windows
 - [ ] Verify shadow rendering at screen boundaries
 
-### ~~Priority 2: Shadow Rendering~~ ⚠️ PARTIAL
+### Priority 2: Shadow Rendering ⚠️ PARTIAL
 Basic shadow support works with slNoShadow style flag. Remaining work:
 - [ ] Full TColorAttr/TColorDesired implementation (Gap 1)
 - [ ] Fix ApplyShadow for non-BIOS colors (Gap 2)
 
-### ~~Priority 3: Re-enable Window Buffering~~ ✅ COMPLETE
+### Priority 3: Re-enable Window Buffering ✅ COMPLETE
 TWindow now uses full buffering with hierarchical write support.
 
-### Priority 1: TColorAttr Full Color Model (CRITICAL for full parity)
+### Priority 4: TColorAttr Full Color Model (CRITICAL for full parity)
 Implement upstream-compatible color system:
 - [ ] `TColorDesired` union type (BIOS/RGB/XTerm/Default)
 - [ ] Update `TColorAttr` to use 27-bit fg/bg fields
 - [ ] Update `ApplyShadow` to use `TColorDesired.toBIOS()`
 - [ ] Color conversion functions (RGBtoBIOS, XTermtoBIOS, etc.)
 
-### Priority 2: Standard Dialogs
+### Priority 5: Standard Dialogs
 - messageBox(), inputBox()
 
-### Priority 3: Editor Module
+### Priority 6: Editor Module
 - TEditor, TMemo, TFileEditor
 
-### Priority 4: File Dialogs
+### Priority 7: File Dialogs
 - TFileDialog, TChDirDialog
 
-### Priority 5: Advanced Features
+### Priority 8: Advanced Features
 - Validators, Help system, Collections
 
-### Priority 6: Cross-Platform
+### Priority 9: Cross-Platform
 - Linux driver (ncurses-based)
 - macOS support

@@ -12,26 +12,24 @@ This project is a work in progress C# 14 / .NET 10 port of [magiblot/tvision](ht
 
 ## Common Commands
 
+**IMPORTANT:** Always build individual projects, never the solution directly. The environment may have `Platform=x64` set which causes MSB4126 errors with solution-level builds.
+
 ```bash
+# Build the library
+dotnet build TurboVision/TurboVision.csproj
+
 # Run tests
 dotnet test --project TurboVision.Tests/TurboVision.Tests.csproj
 
-# Build the solution
-dotnet build
-
-# Run the Hello example
+# Build and run the Hello example
+dotnet build Examples/Hello/Hello.csproj
 dotnet run --project Examples/Hello/Hello.csproj
 ```
 
 ## Build Notes
 
-- **Do NOT specify platform-specific configurations** like `Debug|x64` or `/p:Platform=x64`. This solution only supports `Any CPU`. Use the simple commands above without platform arguments, or if you must specify: `/p:Platform="Any CPU"`.
-- **If you get MSB4126 errors** about invalid solution configuration, your environment may have `Platform=x64` set. Build individual projects directly instead:
-  ```bash
-  dotnet build TurboVision/TurboVision.csproj
-  dotnet test --project TurboVision.Tests/TurboVision.Tests.csproj
-  dotnet build Examples/Hello/Hello.csproj
-  ```
+- **NEVER use `dotnet build` without specifying a project** - it will try to build the solution and fail with MSB4126
+- **Do NOT specify platform-specific configurations** like `Debug|x64` or `/p:Platform=x64` - this solution only supports `Any CPU`
 
 ## Guidelines
 
