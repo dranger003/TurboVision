@@ -47,13 +47,21 @@ public class TView : TObject
     public ushort EventMask { get; set; } = EventConstants.evMouseDown | EventConstants.evKeyDown | EventConstants.evCommand;
     public ushort State { get; set; } = StateFlags.sfVisible;
     public byte GrowMode { get; set; }
-    public byte DragMode { get; set; }
+    public byte DragMode { get; set; } = DragFlags.dmLimitLoY;
     public ushort HelpCtx { get; set; }
+
+    /// <summary>
+    /// Balance values for resize operations. Tracks remainders when views
+    /// hit size limits, allowing them to recover original sizes when possible.
+    /// </summary>
+    public TPoint ResizeBalance { get; set; }
 
     public TView(TRect bounds)
     {
         Origin = bounds.A;
         Size = new TPoint(bounds.B.X - bounds.A.X, bounds.B.Y - bounds.A.Y);
+        Cursor = new TPoint(0, 0);
+        ResizeBalance = new TPoint(0, 0);
     }
 
     // Bounds and geometry
@@ -90,10 +98,111 @@ public class TView : TObject
         max = Owner != null ? Owner.Size : new TPoint(int.MaxValue, int.MaxValue);
     }
 
+    /// <summary>
+    /// Constrains a value to a range.
+    /// </summary>
+    private static int Range(int val, int min, int max)
+    {
+        if (min > max)
+            min = max;
+        if (val < min)
+            return min;
+        if (val > max)
+            return max;
+        return val;
+    }
+
+    /// <summary>
+    /// Fits val into a range while tracking remainders in balance.
+    /// This allows views to recover their original sizes when constraints are relaxed.
+    /// </summary>
+    private static int BalancedRange(int val, int min, int max, ref int balance)
+    {
+        if (min > max)
+            max = min;
+        if (val < min)
+        {
+            balance += val - min;
+            return min;
+        }
+        else if (val > max)
+        {
+            balance += val - max;
+            return max;
+        }
+        else
+        {
+            int offset = Range(val + balance, min, max) - val;
+            balance -= offset;
+            return val + offset;
+        }
+    }
+
+    /// <summary>
+    /// Adjusts size (a to b) to fit within min/max limits using balanced ranging.
+    /// </summary>
+    private static void FitToLimits(int a, ref int b, int min, int max, ref int balance)
+    {
+        b = a + BalancedRange(b - a, min, max, ref balance);
+    }
+
+    /// <summary>
+    /// Grows or moves a coordinate based on grow mode and size change.
+    /// </summary>
+    private void Grow(int s, int d, ref int i)
+    {
+        if ((GrowMode & GrowFlags.gfGrowRel) != 0)
+        {
+            if (s != d)
+                i = (i * s + ((s - d) >> 1)) / (s - d);
+        }
+        else
+        {
+            i += d;
+        }
+    }
+
     public virtual void CalcBounds(ref TRect bounds, TPoint delta)
     {
         bounds = GetBounds();
-        // TODO: Implement grow mode calculations
+
+        if (Owner == null)
+            return;
+
+        int s = Owner.Size.X;
+        int d = delta.X;
+
+        int ax = bounds.A.X;
+        int bx = bounds.B.X;
+        int ay = bounds.A.Y;
+        int by = bounds.B.Y;
+
+        if ((GrowMode & GrowFlags.gfGrowLoX) != 0)
+            Grow(s, d, ref ax);
+
+        if ((GrowMode & GrowFlags.gfGrowHiX) != 0)
+            Grow(s, d, ref bx);
+
+        s = Owner.Size.Y;
+        d = delta.Y;
+
+        if ((GrowMode & GrowFlags.gfGrowLoY) != 0)
+            Grow(s, d, ref ay);
+
+        if ((GrowMode & GrowFlags.gfGrowHiY) != 0)
+            Grow(s, d, ref by);
+
+        SizeLimits(out var minLim, out var maxLim);
+
+        int balanceX = ResizeBalance.X;
+        int balanceY = ResizeBalance.Y;
+
+        FitToLimits(ax, ref bx, minLim.X, maxLim.X, ref balanceX);
+        FitToLimits(ay, ref by, minLim.Y, maxLim.Y, ref balanceY);
+
+        ResizeBalance = new TPoint(balanceX, balanceY);
+
+        bounds = new TRect(ax, ay, bx, by);
     }
 
     public virtual void ChangeBounds(TRect bounds)
