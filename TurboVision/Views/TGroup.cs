@@ -599,16 +599,29 @@ public class TGroup : TView
     public override void ChangeBounds(TRect bounds)
     {
         var delta = new TPoint(bounds.B.X - bounds.A.X - Size.X, bounds.B.Y - bounds.A.Y - Size.Y);
-        FreeBuffer();
-        SetBounds(bounds);
-        Clip = GetExtent();
 
-        ForEach((view, _) =>
+        if (delta.X == 0 && delta.Y == 0)
         {
-            var r = new TRect();
-            view.CalcBounds(ref r, delta);
-            view.ChangeBounds(r);
-        }, null);
+            // Just a position change, no size change
+            SetBounds(bounds);
+            DrawView();
+        }
+        else
+        {
+            // Size changed - reallocate buffer and update children
+            FreeBuffer();
+            SetBounds(bounds);
+            Clip = GetExtent();
+            GetBuffer();
+            Lock();
+            ForEach((view, _) =>
+            {
+                var r = new TRect();
+                view.CalcBounds(ref r, delta);
+                view.ChangeBounds(r);
+            }, null);
+            Unlock();
+        }
     }
 
     // Data
