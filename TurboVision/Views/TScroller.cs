@@ -43,16 +43,11 @@ public class TScroller : TView
     {
         base.HandleEvent(ref ev);
 
-        if (ev.What == EventConstants.evBroadcast)
+        if (ev.What == EventConstants.evBroadcast &&
+            ev.Message.Command == CommandConstants.cmScrollBarChanged &&
+            (ev.Message.InfoPtr == HScrollBar || ev.Message.InfoPtr == VScrollBar))
         {
-            if (ev.Message.Command == CommandConstants.cmScrollBarChanged)
-            {
-                // TODO: Handle scrollbar changes
-            }
-        }
-        else if (ev.What == EventConstants.evKeyDown)
-        {
-            // TODO: Handle keyboard scrolling
+            ScrollDraw();
         }
     }
 
@@ -62,12 +57,6 @@ public class TScroller : TView
         HScrollBar?.SetValue(x);
         VScrollBar?.SetValue(y);
         DrawLock--;
-
-        Delta = new TPoint(
-            HScrollBar?.Value ?? 0,
-            VScrollBar?.Value ?? 0
-        );
-
         CheckDraw();
     }
 
@@ -109,22 +98,37 @@ public class TScroller : TView
 
     public void CheckDraw()
     {
-        if (DrawLock == 0)
-        {
-            DrawView();
-        }
-        else
-        {
-            DrawFlag = true;
-        }
-    }
-
-    public virtual void ScrollDraw()
-    {
-        if (DrawFlag)
+        if (DrawLock == 0 && DrawFlag)
         {
             DrawFlag = false;
             DrawView();
+        }
+    }
+
+    /// <summary>
+    /// Called when scrollbars change. Updates delta and redraws if position changed.
+    /// </summary>
+    public virtual void ScrollDraw()
+    {
+        var d = new TPoint(
+            HScrollBar?.Value ?? 0,
+            VScrollBar?.Value ?? 0
+        );
+
+        if (d.X != Delta.X || d.Y != Delta.Y)
+        {
+            // Adjust cursor position to compensate for scroll
+            SetCursor(Cursor.X + Delta.X - d.X, Cursor.Y + Delta.Y - d.Y);
+            Delta = d;
+
+            if (DrawLock != 0)
+            {
+                DrawFlag = true;
+            }
+            else
+            {
+                DrawView();
+            }
         }
     }
 

@@ -185,11 +185,79 @@ public class TFrame : TView
 
         if (ev.What == EventConstants.evMouseDown)
         {
-            // TODO: Handle frame drag, close icon click, zoom icon click
-        }
-        else if (ev.What == EventConstants.evBroadcast)
-        {
-            // TODO: Handle frame-related broadcasts
+            var mouse = MakeLocal(ev.Mouse.Where);
+            var window = Owner as TWindow;
+            if (window == null) return;
+
+            if (mouse.Y == 0)
+            {
+                // Top frame row - check for close icon, zoom icon, or drag
+                if ((window.Flags & WindowFlags.wfClose) != 0 &&
+                    GetState(StateFlags.sfActive) &&
+                    mouse.X >= 2 && mouse.X <= 4)
+                {
+                    // Close icon clicked - wait for mouse up
+                    while (MouseEvent(ref ev, EventConstants.evMouse)) ;
+                    mouse = MakeLocal(ev.Mouse.Where);
+                    if (mouse.Y == 0 && mouse.X >= 2 && mouse.X <= 4)
+                    {
+                        // Still on close icon - send close command
+                        ev.What = EventConstants.evCommand;
+                        ev.Message = new MessageEvent
+                        {
+                            Command = CommandConstants.cmClose,
+                            InfoPtr = Owner
+                        };
+                        PutEvent(ev);
+                        ClearEvent(ref ev);
+                    }
+                }
+                else if ((window.Flags & WindowFlags.wfZoom) != 0 &&
+                         GetState(StateFlags.sfActive) &&
+                         ((mouse.X >= Size.X - 5 && mouse.X <= Size.X - 3) ||
+                          (ev.Mouse.EventFlags & EventConstants.meDoubleClick) != 0))
+                {
+                    // Zoom icon clicked or double-click
+                    ev.What = EventConstants.evCommand;
+                    ev.Message = new MessageEvent
+                    {
+                        Command = CommandConstants.cmZoom,
+                        InfoPtr = Owner
+                    };
+                    PutEvent(ev);
+                    ClearEvent(ref ev);
+                }
+                else if ((window.Flags & WindowFlags.wfMove) != 0)
+                {
+                    // Drag to move window
+                    DragWindow(ref ev, DragFlags.dmDragMove);
+                }
+            }
+            else if (GetState(StateFlags.sfActive) &&
+                     mouse.Y >= Size.Y - 1 &&
+                     (window.Flags & WindowFlags.wfGrow) != 0)
+            {
+                // Bottom frame row - check for resize corners
+                if (mouse.X >= Size.X - 2)
+                {
+                    // Bottom-right corner - drag to grow
+                    DragWindow(ref ev, DragFlags.dmDragGrow);
+                }
+                else if (mouse.X <= 1)
+                {
+                    // Bottom-left corner - drag to grow left
+                    DragWindow(ref ev, DragFlags.dmDragGrowLeft);
+                }
+            }
+            else if (ev.What == EventConstants.evMouseDown &&
+                     ev.Mouse.Buttons == EventConstants.mbMiddleButton &&
+                     mouse.X > 0 && mouse.X < Size.X - 1 &&
+                     mouse.Y > 0 && mouse.Y < Size.Y - 1 &&
+                     (window.Flags & WindowFlags.wfMove) != 0)
+            {
+                // Middle mouse button inside frame - drag to move
+                DragWindow(ref ev, DragFlags.dmDragMove);
+            }
         }
     }
 
@@ -203,8 +271,13 @@ public class TFrame : TView
         }
     }
 
-    private void DragWindow(TEvent ev, byte dragMode)
+    private void DragWindow(ref TEvent ev, byte mode)
     {
-        // TODO: Implement window dragging
+        if (Owner?.Owner == null) return;
+
+        var limits = Owner.Owner.GetExtent();
+        Owner.SizeLimits(out var min, out var max);
+        Owner.DragView(ev, (byte)(Owner.DragMode | mode), limits, min, max);
+        ClearEvent(ref ev);
     }
 }
