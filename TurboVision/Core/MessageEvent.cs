@@ -6,21 +6,27 @@ namespace TurboVision.Core;
 public struct MessageEvent
 {
     public ushort Command { get; set; }
-    public nint InfoPtr { get; set; }
+    public object? InfoPtr { get; set; }
 
     public int InfoInt
     {
-        get { return (int)InfoPtr; }
+        get { return InfoPtr is int i ? i : (InfoPtr is nint n ? (int)n : 0); }
+        set { InfoPtr = value; }
+    }
+
+    public nint InfoNInt
+    {
+        get { return InfoPtr is nint n ? n : (InfoPtr is int i ? i : 0); }
         set { InfoPtr = value; }
     }
 
     public MessageEvent(ushort command)
     {
         Command = command;
-        InfoPtr = 0;
+        InfoPtr = null;
     }
 
-    public MessageEvent(ushort command, nint infoPtr)
+    public MessageEvent(ushort command, object? infoPtr)
     {
         Command = command;
         InfoPtr = infoPtr;

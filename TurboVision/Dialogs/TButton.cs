@@ -284,7 +284,7 @@ public class TButton : TView
                         break;
 
                     case CommandConstants.cmTimerExpired:
-                        if (_animationTimer != default && ev.Message.InfoPtr == _animationTimer)
+                        if (_animationTimer != default && Equals(ev.Message.InfoPtr, (nint)_animationTimer))
                         {
                             _animationTimer = default;
                             DrawState(false);
@@ -345,7 +345,7 @@ public class TButton : TView
     }
 
     // Helper to send a message to a target
-    private static nint Message(TGroup? target, ushort what, ushort command, nint infoPtr)
+    private static object? Message(TGroup? target, ushort what, ushort command, object? infoPtr)
     {
         if (target != null)
         {
@@ -361,7 +361,7 @@ public class TButton : TView
                 return ev.Message.InfoPtr;
             }
         }
-        return 0;
+        return null;
     }
 
     public override void ShutDown()

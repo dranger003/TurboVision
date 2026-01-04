@@ -1,24 +1,17 @@
-using System.Runtime.InteropServices;
-
 namespace TurboVision.Core;
 
 /// <summary>
 /// Represents an event in the TurboVision event system.
 /// Can be a mouse, keyboard, or message event.
 /// </summary>
-[StructLayout(LayoutKind.Explicit)]
 public struct TEvent
 {
-    [FieldOffset(0)]
     public ushort What;
 
-    [FieldOffset(2)]
+    // Event data - only one is valid based on What field
+    // Using public fields to allow direct modification
     public MouseEvent Mouse;
-
-    [FieldOffset(2)]
     public KeyDownEvent KeyDown;
-
-    [FieldOffset(2)]
     public MessageEvent Message;
 
     /// <summary>
@@ -56,7 +49,7 @@ public struct TEvent
     /// <summary>
     /// Creates a command event.
     /// </summary>
-    public static TEvent Command(ushort command, nint infoPtr = 0)
+    public static TEvent Command(ushort command, object? infoPtr = null)
     {
         TEvent ev = default;
         ev.What = EventConstants.evCommand;
@@ -67,7 +60,7 @@ public struct TEvent
     /// <summary>
     /// Creates a broadcast event.
     /// </summary>
-    public static TEvent Broadcast(ushort command, nint infoPtr = 0)
+    public static TEvent Broadcast(ushort command, object? infoPtr = null)
     {
         TEvent ev = default;
         ev.What = EventConstants.evBroadcast;
