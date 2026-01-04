@@ -56,71 +56,86 @@ public class TGroup : TView
 
     public void InsertBefore(TView p, TView? target)
     {
-        if (p == null || p.Owner != null)
+        if (p == null || p.Owner != null || (target != null && target.Owner != this))
         {
             return;
         }
 
-        if (target != null)
+        // Handle centering options
+        if ((p.Options & OptionFlags.ofCenterX) != 0)
         {
-            InsertView(p, target);
+            p.Origin = new TPoint((Size.X - p.Size.X) / 2, p.Origin.Y);
         }
-        else
+        if ((p.Options & OptionFlags.ofCenterY) != 0)
         {
-            InsertView(p, Last);
-        }
-
-        p.Owner = this;
-
-        // Propagate exposed/active/focused state from owner to the new view
-        if (p.GetState(StateFlags.sfVisible))
-        {
-            if (GetState(StateFlags.sfExposed))
-            {
-                p.SetState(StateFlags.sfExposed, true);
-            }
-            if (GetState(StateFlags.sfActive))
-            {
-                p.SetState(StateFlags.sfActive, true);
-            }
+            p.Origin = new TPoint(p.Origin.X, (Size.Y - p.Size.Y) / 2);
         }
 
-        p.Awaken();
+        // Save state and hide before inserting
+        var saveState = p.State;
+        p.Hide();
 
-        if ((p.Options & OptionFlags.ofSelectable) != 0)
+        // Insert into the view list (this also sets the owner)
+        InsertView(p, target);
+
+        // Show if it was visible
+        if ((saveState & StateFlags.sfVisible) != 0)
         {
-            p.Select();
+            p.Show();
+        }
+
+        // Activate if the group is active
+        if ((saveState & StateFlags.sfActive) != 0)
+        {
+            p.SetState(StateFlags.sfActive, true);
         }
     }
 
     public void InsertView(TView p, TView? target)
     {
-        if (Last == null)
+        // Set owner first (matches C++ behavior)
+        p.Owner = this;
+
+        if (target != null)
         {
-            Last = p;
-            p.Next = p;
-        }
-        else if (target == null)
-        {
-            p.Next = Last.Next;
-            Last.Next = p;
-            Last = p;
-        }
-        else
-        {
+            // Insert before target
             var prev = target.Prev();
             if (prev != null)
             {
-                p.Next = target;
+                p.Next = prev.Next;
                 prev.Next = p;
             }
         }
+        else
+        {
+            // Insert at end (after Last)
+            if (Last == null)
+            {
+                p.Next = p;
+            }
+            else
+            {
+                p.Next = Last.Next;
+                Last.Next = p;
+            }
+            Last = p;
+        }
     }
 
-    public void Remove(TView p)
+    public void Remove(TView? p)
     {
-        RemoveView(p);
-        p.Owner = null;
+        if (p != null)
+        {
+            var saveState = p.State;
+            p.Hide();
+            RemoveView(p);
+            p.Owner = null;
+            p.Next = null;
+            if ((saveState & StateFlags.sfVisible) != 0)
+            {
+                p.Show();
+            }
+        }
     }
 
     public void RemoveView(TView p)
@@ -130,26 +145,24 @@ public class TGroup : TView
             return;
         }
 
-        if (Last.Next == p && Last == p)
+        // Find the view before p in the circular list
+        var s = Last;
+        while (s.Next != p)
         {
-            Last = null;
-        }
-        else
-        {
-            var prev = p.Prev();
-            if (prev != null)
+            if (s.Next == Last)
             {
-                prev.Next = p.Next;
-                if (Last == p)
-                {
-                    Last = prev;
-                }
+                // p is not in this group's list
+                return;
             }
+            s = s.Next!;
         }
 
-        if (Current == p)
+        // Remove p from the list
+        s.Next = p.Next;
+        if (p == Last)
         {
-            ResetCurrent();
+            // p was the last view
+            Last = (p == p.Next) ? null : s;
         }
     }
 
@@ -233,11 +246,22 @@ public class TGroup : TView
             try
             {
                 FocusView(Current, false);
-                if (mode != SelectMode.leaveSelect)
+                // Deselect old current (unless entering selection)
+                if (mode != SelectMode.enterSelect && Current != null)
                 {
-                    Current = p;
+                    Current.SetState(StateFlags.sfSelected, false);
                 }
-                FocusView(Current, true);
+                // Select new view (unless leaving selection)
+                if (mode != SelectMode.leaveSelect && p != null)
+                {
+                    p.SetState(StateFlags.sfSelected, true);
+                }
+                // Focus new view if group is focused
+                if (GetState(StateFlags.sfFocused) && p != null)
+                {
+                    p.SetState(StateFlags.sfFocused, true);
+                }
+                Current = p;
             }
             finally
             {
@@ -289,7 +313,8 @@ public class TGroup : TView
 
     private void FocusView(TView? p, bool enable)
     {
-        if (p != null)
+        // Only set focus on child if the group itself is focused
+        if (GetState(StateFlags.sfFocused) && p != null)
         {
             p.SetState(StateFlags.sfFocused, enable);
         }
@@ -613,22 +638,39 @@ public class TGroup : TView
     {
         base.SetState(aState, enable);
 
-        if ((aState & (StateFlags.sfActive | StateFlags.sfFocused | StateFlags.sfExposed)) != 0)
+        // For sfActive or sfDragging: propagate to all children
+        if ((aState & (StateFlags.sfActive | StateFlags.sfDragging)) != 0)
         {
             Lock();
             try
             {
-                ForEach((view, _) =>
-                {
-                    if (view.GetState(StateFlags.sfVisible))
-                    {
-                        view.SetState(aState, enable);
-                    }
-                }, null);
+                ForEach((view, _) => view.SetState(aState, enable), null);
             }
             finally
             {
                 Unlock();
+            }
+        }
+
+        // For sfFocused: only propagate to current view
+        if ((aState & StateFlags.sfFocused) != 0)
+        {
+            Current?.SetState(StateFlags.sfFocused, enable);
+        }
+
+        // For sfExposed: propagate to visible children and manage buffer
+        if ((aState & StateFlags.sfExposed) != 0)
+        {
+            ForEach((view, _) =>
+            {
+                if (view.GetState(StateFlags.sfVisible))
+                {
+                    view.SetState(StateFlags.sfExposed, enable);
+                }
+            }, null);
+            if (!enable)
+            {
+                FreeBuffer();
             }
         }
     }

@@ -19,6 +19,8 @@ public class TView : TObject
     public static TCommandSet CurCommandSet { get; } = InitCommands();
     public static bool ShowMarkers { get; set; }
     public static byte ErrorAttr { get; set; } = 0xCF;
+    public static TPoint ShadowSize { get; set; } = new TPoint(2, 1);
+    public static byte ShadowAttr { get; set; } = 0x08;
 
     private static TCommandSet InitCommands()
     {
@@ -257,10 +259,19 @@ public class TView : TObject
             State &= (ushort)~aState;
         }
 
-        if ((aState & StateFlags.sfVisible) != 0)
+        if (Owner == null)
         {
-            if (Owner != null)
-            {
+            return;
+        }
+
+        switch (aState)
+        {
+            case StateFlags.sfVisible:
+                // Propagate sfExposed if owner is exposed
+                if ((Owner.State & StateFlags.sfExposed) != 0)
+                {
+                    SetState(StateFlags.sfExposed, enable);
+                }
                 if (enable)
                 {
                     DrawShow(null);
@@ -269,7 +280,26 @@ public class TView : TObject
                 {
                     DrawHide(null);
                 }
-            }
+                // Reset current selection when a selectable view's visibility changes
+                if ((Options & OptionFlags.ofSelectable) != 0)
+                {
+                    Owner.ResetCurrent();
+                }
+                break;
+
+            case StateFlags.sfCursorVis:
+            case StateFlags.sfCursorIns:
+                DrawCursor();
+                break;
+
+            case StateFlags.sfShadow:
+                DrawUnderView(true, null);
+                break;
+
+            case StateFlags.sfFocused:
+                ResetCursor();
+                // TODO: Broadcast cmReceivedFocus/cmReleasedFocus
+                break;
         }
     }
 
@@ -312,22 +342,40 @@ public class TView : TObject
 
     public void DrawHide(TView? lastView)
     {
-        // TODO: Implement
+        DrawCursor();
+        DrawUnderView((State & StateFlags.sfShadow) != 0, lastView);
     }
 
     public void DrawShow(TView? lastView)
     {
-        // TODO: Implement
+        DrawView();
+        if ((State & StateFlags.sfShadow) != 0)
+        {
+            DrawUnderView(true, lastView);
+        }
     }
 
     public void DrawUnderRect(TRect r, TView? lastView)
     {
-        // TODO: Implement
+        if (Owner == null)
+        {
+            return;
+        }
+        // Temporarily clip to the specified rectangle and redraw views under this one
+        var saveClip = Owner.Clip;
+        Owner.Clip = Owner.Clip.Intersect(r);
+        Owner.DrawSubViews(NextView(), lastView);
+        Owner.Clip = saveClip;
     }
 
     public void DrawUnderView(bool doShadow, TView? lastView)
     {
-        // TODO: Implement
+        var r = GetBounds();
+        if (doShadow)
+        {
+            r.B = new TPoint(r.B.X + ShadowSize.X, r.B.Y + ShadowSize.Y);
+        }
+        DrawUnderRect(r, lastView);
     }
 
     // Cursor
@@ -439,7 +487,46 @@ public class TView : TObject
 
     public void PutInFrontOf(TView? target)
     {
-        Owner?.InsertView(this, target);
+        if (Owner != null && target != this && target != NextView() &&
+            (target == null || target.Owner == Owner))
+        {
+            if ((State & StateFlags.sfVisible) == 0)
+            {
+                // Not visible - simple remove and reinsert
+                Owner.RemoveView(this);
+                Owner.InsertView(this, target);
+            }
+            else
+            {
+                // Visible - need to handle drawing
+                var lastView = NextView();
+                var p = target;
+                while (p != null && p != this)
+                {
+                    p = p.NextView();
+                }
+                if (p == null)
+                {
+                    lastView = target;
+                }
+                State &= unchecked((ushort)~StateFlags.sfVisible);
+                if (lastView == target)
+                {
+                    DrawHide(lastView);
+                }
+                Owner.RemoveView(this);
+                Owner.InsertView(this, target);
+                State |= StateFlags.sfVisible;
+                if (lastView != target)
+                {
+                    DrawShow(lastView);
+                }
+                if ((Options & OptionFlags.ofSelectable) != 0)
+                {
+                    Owner.ResetCurrent();
+                }
+            }
+        }
     }
 
     // Navigation
