@@ -422,9 +422,9 @@ public class TGroup : TView
             while (p != null)
             {
                 var next = p.NextView();
-                if (ev.What != EventConstants.evNothing && (p.Options & OptionFlags.ofPreProcess) != 0)
+                if (ev.What != EventConstants.evNothing)
                 {
-                    p.HandleEvent(ref ev);
+                    DoHandleEvent(p, ref ev);
                 }
                 p = next;
             }
@@ -432,7 +432,7 @@ public class TGroup : TView
             Phase = PhaseType.phFocused;
             if (ev.What != EventConstants.evNothing && Current != null)
             {
-                Current.HandleEvent(ref ev);
+                DoHandleEvent(Current, ref ev);
             }
 
             Phase = PhaseType.phPostProcess;
@@ -440,25 +440,75 @@ public class TGroup : TView
             while (p != null)
             {
                 var next = p.NextView();
-                if (ev.What != EventConstants.evNothing && (p.Options & OptionFlags.ofPostProcess) != 0)
+                if (ev.What != EventConstants.evNothing)
                 {
-                    p.HandleEvent(ref ev);
+                    DoHandleEvent(p, ref ev);
                 }
                 p = next;
             }
         }
-        else
+        else if (ev.What != EventConstants.evNothing)
         {
-            var p = First();
-            while (p != null)
+            Phase = PhaseType.phFocused;
+            if ((ev.What & EventConstants.positionalEvents) != 0)
             {
-                var next = p.NextView();
-                if (ev.What != EventConstants.evNothing && p.GetState(StateFlags.sfVisible))
+                // For positional events (mouse), only handle by the view under the mouse
+                var target = FirstThat((view, args) => view.ContainsMouse((TEvent)args!), ev);
+                if (target != null)
                 {
-                    p.HandleEvent(ref ev);
+                    DoHandleEvent(target, ref ev);
                 }
-                p = next;
             }
+            else
+            {
+                // For other events (broadcasts), send to all views
+                var p = First();
+                while (p != null)
+                {
+                    var next = p.NextView();
+                    if (ev.What != EventConstants.evNothing)
+                    {
+                        DoHandleEvent(p, ref ev);
+                    }
+                    p = next;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Helper to handle events for a view, respecting disabled state, phase, and event mask.
+    /// Matches C++ doHandleEvent behavior.
+    /// </summary>
+    private void DoHandleEvent(TView? p, ref TEvent ev)
+    {
+        if (p == null)
+            return;
+
+        // Skip disabled views for positional and focused events
+        if ((p.State & StateFlags.sfDisabled) != 0 &&
+            (ev.What & (EventConstants.positionalEvents | EventConstants.focusedEvents)) != 0)
+            return;
+
+        // Check phase-specific options
+        switch (Phase)
+        {
+            case PhaseType.phFocused:
+                break;
+            case PhaseType.phPreProcess:
+                if ((p.Options & OptionFlags.ofPreProcess) == 0)
+                    return;
+                break;
+            case PhaseType.phPostProcess:
+                if ((p.Options & OptionFlags.ofPostProcess) == 0)
+                    return;
+                break;
+        }
+
+        // Only handle if event matches the view's event mask
+        if ((ev.What & p.EventMask) != 0)
+        {
+            p.HandleEvent(ref ev);
         }
     }
 
