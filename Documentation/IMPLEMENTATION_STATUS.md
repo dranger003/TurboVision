@@ -121,6 +121,22 @@ public class HelloApp : TApplication
     - The Exit menu item was incorrectly passing `cmQuit` (1) instead of `kbAltX` (0x2D00) as the keyCode
     - Now TMenuBar's HotKey() properly finds the menu item when Alt-X is pressed
     - Both keyboard (Alt-X) and mouse click on status bar now exit correctly
+18. ✅ TDrawBuffer.MoveBuf() - Added missing method for buffer copying:
+    - Copies consecutive characters from a source string to the buffer
+    - Required for correct frame rendering in TMenuBox
+19. ✅ TMenuBox.FrameLine() - Fixed frame rendering:
+    - Previously used MoveChar() which fills with the same character
+    - Now uses MoveBuf() to copy corner character pairs (e.g., " ┌" and "┐ ")
+    - Menu dropdown boxes now render with proper box-drawing borders
+20. ✅ TMenuBox.GetRect() - Added missing menu box sizing calculation:
+    - Calculates proper width based on menu item names and param strings
+    - Calculates proper height based on number of menu items
+    - Added CStrLen() helper to count visible chars (excluding ~ hotkey markers)
+    - Menu boxes now properly size to fit their contents
+21. ✅ TMenuBox.FrameLine() - Fixed frame vs content color separation:
+    - Frame edges (│ characters) now always use normal color
+    - Content area (middle) uses selection color when item is highlighted
+    - Selection highlight no longer bleeds over frame characters
 
 **Remaining Gaps (for full functionality):**
 
@@ -138,10 +154,10 @@ Test Files:
 3. TurboVision.Tests/TRectTests.cs - 14 tests for TRect geometry operations
 4. TurboVision.Tests/TPointTests.cs - 8 tests for TPoint arithmetic operations
 5. TurboVision.Tests/TScreenCellTests.cs - 18 tests for TColorAttr, TScreenCell, TAttrPair
-6. TurboVision.Tests/TDrawBufferTests.cs - 22 tests for TDrawBuffer drawing operations
+6. TurboVision.Tests/TDrawBufferTests.cs - 27 tests for TDrawBuffer drawing operations
 7. TurboVision.Tests/TStatusLineTests.cs - 5 tests for TStatusLine keyboard event handling
 
-Total: **72 tests** (all passing)
+Total: **77 tests** (all passing)
 
 Test Categories:
 
@@ -154,7 +170,7 @@ Test Categories:
 | TColorAttr            | 10    | ✅ Pass     | Foreground/background, byte conversion    |
 | TScreenCell           | 5     | ✅ Pass     | Constructor, properties, SetCell          |
 | TAttrPair             | 3     | ✅ Pass     | Constructor, indexer, byte conversion     |
-| TDrawBuffer           | 22    | ✅ Pass     | MoveChar, MoveStr, MoveCStr, PutChar/Attr |
+| TDrawBuffer           | 27    | ✅ Pass     | MoveBuf, MoveChar, MoveStr, MoveCStr, PutChar/Attr |
 | TStatusLine           | 5     | ✅ Pass     | Keyboard event handling, TKey comparison  |
 
 TKey Normalization - COMPLETE
@@ -171,9 +187,8 @@ The TKey struct now implements full normalization matching the upstream C++ beha
 
 # NEXT STEPS
 
-1. Fix Alt-X not working using the keyboard in the example Hello program (however clicking Alt-X in the statusbar works)
-2. Implement TFrame mouse handling (drag to move/resize windows)
-3. Implement TInputLine text input control
-4. Implement TCheckBoxes and TRadioButtons
-5. Add clipboard support
-6. Port additional examples (e.g., fileview, tvdemo)
+1. Implement TFrame mouse handling (drag to move/resize windows)
+2. Implement TInputLine text input control
+3. Implement TCheckBoxes and TRadioButtons
+4. Add clipboard support
+5. Port additional examples (e.g., fileview, tvdemo)
