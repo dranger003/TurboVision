@@ -375,6 +375,7 @@ public class TGroup : TView
     public void GetBuffer()
     {
         // Only allocate buffer if exposed (matches C++ behavior)
+        // Don't allocate if we already have a buffer (e.g., TProgram uses TScreen.ScreenBuffer)
         if ((State & StateFlags.sfExposed) != 0 &&
             (Options & OptionFlags.ofBuffered) != 0 &&
             Buffer == null)
@@ -385,7 +386,11 @@ public class TGroup : TView
 
     public void FreeBuffer()
     {
-        Buffer = null;
+        // Don't free the screen buffer (owned by TScreen)
+        if (Buffer != Platform.TScreen.ScreenBuffer)
+        {
+            Buffer = null;
+        }
     }
 
     // Locking
