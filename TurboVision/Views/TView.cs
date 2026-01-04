@@ -236,9 +236,20 @@ public class TView : TObject
         );
         bounds.B = new TPoint(bounds.A.X + size.X, bounds.A.Y + size.Y);
 
-        if (!bounds.Equals(GetBounds()))
+        var oldBounds = GetBounds();
+        if (!bounds.Equals(oldBounds))
         {
             ChangeBounds(bounds);
+            // Redraw views underneath the old position to erase the "ghost"
+            if (Owner != null && (State & StateFlags.sfVisible) != 0)
+            {
+                if ((State & StateFlags.sfShadow) != 0)
+                {
+                    oldBounds = oldBounds.Union(bounds);
+                    oldBounds.B = new TPoint(oldBounds.B.X + ShadowSize.X, oldBounds.B.Y + ShadowSize.Y);
+                }
+                DrawUnderRect(oldBounds, null);
+            }
         }
     }
 
