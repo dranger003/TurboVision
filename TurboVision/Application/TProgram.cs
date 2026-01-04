@@ -67,7 +67,7 @@ public class TProgram : TGroup
     public static TMenuBar? MenuBar { get; set; }
     public static TDeskTop? DeskTop { get; set; }
     public static int AppPalette { get; set; } = apColor;
-    public static int EventTimeoutMs { get; set; } = 50;
+    public static int EventTimeoutMs { get; set; } = 20; // 50 wake-ups per second
 
     protected static TEvent _pending;
 
