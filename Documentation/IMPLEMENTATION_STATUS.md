@@ -406,22 +406,6 @@ Required file: `histlist.cpp`
 
 ---
 
-## Known Issues
-
-### Bug 3: Dialog Labels Not Visible
-**Severity:** Medium
-**Status:** Unresolved - may be environment-specific
-
-### Bug 5: Window Content Disappears on Titlebar Click
-**Severity:** Medium
-**Status:** Unresolved - may require runtime debugging
-
-### Bug 6: Strong Flashing During Window Drag
-**Severity:** Low
-**Status:** Expected with unbuffered console drawing
-
----
-
 ## Test Coverage
 
 | Category | Tests | Status |
@@ -542,7 +526,7 @@ histlist.cpp, misc.cpp, syserr.cpp, fmtstr.cpp
 
 **Build:** Clean
 **Tests:** 88 tests passing
-**Hello Example:** Runs with visual issues (bugs 3, 5, 6)
+**Hello Example:** Runs successfully
 
 ---
 
