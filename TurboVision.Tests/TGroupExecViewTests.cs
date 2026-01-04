@@ -5,8 +5,10 @@ using TurboVision.Views;
 
 /// <summary>
 /// Tests for TGroup.ExecView modal execution.
+/// These tests modify static TView.CurCommandSet state and must not run in parallel.
 /// </summary>
 [TestClass]
+[DoNotParallelize]
 public class TGroupExecViewTests
 {
     /// <summary>
