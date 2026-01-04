@@ -103,6 +103,10 @@ internal ref struct TVWrite
     /// <summary>
     /// Checks for view occlusion and shadow regions. Matches L20 in upstream.
     /// Walks through sibling views in Z-order checking for occlusion.
+    ///
+    /// This is a direct port of the upstream do { } while (0) idiom which uses
+    /// break statements for complex flow control. The C# version uses goto for
+    /// the same effect to maintain exact behavioral parity.
     /// </summary>
     private void L20(TView? dest)
     {
@@ -118,89 +122,75 @@ internal ref struct TVWrite
         else if (next != null)
         {
             // Check if 'next' occludes or shadows the write area
+            // This matches the upstream do { } while (0) structure using goto L20End
             if ((next.State & StateFlags.sfVisible) != 0 && next.Origin.Y <= _y)
             {
-                // Check if we're within this view's vertical extent
                 _tempPos = next.Origin.Y + next.Size.Y;
                 if (_y < _tempPos)
                 {
-                    // We're within the view's vertical bounds
+                    // Y is within view's vertical bounds
                     _tempPos = next.Origin.X;
                     if (_x < _tempPos)
                     {
                         // Left part is not occluded
                         if (_count > _tempPos)
-                        {
-                            // Partial occlusion - split at left edge
-                            L30(next);
-                        }
-                        // else: entirely to the left, continue
+                            L30(next);  // Partial occlusion - split at left edge
+                        // else: entirely to the left, fall through to L20End
+                        goto L20End;
+                    }
+                    _tempPos += next.Size.X;
+                    if (_x < _tempPos)
+                    {
+                        // Start is within the view's horizontal extent
+                        if (_count > _tempPos)
+                            _x = _tempPos;  // Partial occlusion - skip to right edge
+                        else
+                            return;  // Completely occluded by this view
+                    }
+                    // Check shadow region to the right of the view
+                    if ((next.State & StateFlags.sfShadow) != 0 &&
+                        next.Origin.Y + TView.ShadowSize.Y <= _y)
+                    {
+                        _tempPos += TView.ShadowSize.X;
                     }
                     else
                     {
-                        // Check right edge occlusion
-                        _tempPos += next.Size.X;
-                        if (_x < _tempPos)
-                        {
-                            // Start is within the view
-                            if (_count > _tempPos)
-                            {
-                                // Partial occlusion - skip to right edge
-                                _x = _tempPos;
-                            }
-                            else
-                            {
-                                // Completely occluded by this view
-                                return;
-                            }
-                        }
-                        // Check shadow region
-                        if ((next.State & StateFlags.sfShadow) != 0 &&
-                            next.Origin.Y + TView.ShadowSize.Y <= _y)
-                        {
-                            _tempPos += TView.ShadowSize.X;
-                            if (_x < _tempPos)
-                            {
-                                _shadowDepth++;
-                                if (_count > _tempPos)
-                                {
-                                    L30(next);
-                                    _shadowDepth--;
-                                }
-                                // Continue with shadow applied
-                            }
-                        }
+                        goto L20End;
                     }
                 }
                 else if ((next.State & StateFlags.sfShadow) != 0 &&
                          _y < _tempPos + TView.ShadowSize.Y)
                 {
-                    // Below the view but in shadow region
+                    // Y is below the view but in shadow region
                     _tempPos = next.Origin.X + TView.ShadowSize.X;
                     if (_x < _tempPos)
                     {
                         if (_count > _tempPos)
-                        {
-                            L30(next);
-                        }
-                        // else: entirely to the left of shadow, continue
+                            L30(next);  // Partial occlusion - split at shadow left edge
+                        // else: entirely to the left, fall through to L20End
+                        goto L20End;
                     }
-                    else
+                    _tempPos += next.Size.X;
+                }
+                else
+                {
+                    goto L20End;
+                }
+
+                // Apply shadow if we're in the shadow region
+                if (_x < _tempPos)
+                {
+                    _shadowDepth++;
+                    if (_count > _tempPos)
                     {
-                        _tempPos += next.Size.X;
-                        if (_x < _tempPos)
-                        {
-                            _shadowDepth++;
-                            if (_count > _tempPos)
-                            {
-                                L30(next);
-                                _shadowDepth--;
-                            }
-                            // Continue with shadow
-                        }
+                        L30(next);
+                        _shadowDepth--;
                     }
+                    // Continue with shadow applied
                 }
             }
+
+        L20End:
             L20(next);
         }
     }
@@ -304,29 +294,29 @@ internal ref struct TVWrite
 
     /// <summary>
     /// Applies shadow effect to a color attribute. Matches applyShadow in upstream.
+    /// Uses TColorDesired.ToBIOS() for proper color model support.
     /// </summary>
     private static TColorAttr ApplyShadow(TColorAttr attr)
     {
         var style = attr.Style;
         if ((style & ColorStyle.slNoShadow) == 0)
         {
-            // Check if background is not black
-            if (attr.Background != 0)
+            // Check if background would be non-zero when quantized to BIOS
+            // This matches upstream: getBack(attr).toBIOS(false) != 0
+            if (attr.BackgroundColor.ToBIOS(false) != 0)
             {
                 // Use shadow attribute (dark gray on black)
-                attr = new TColorAttr(
-                    (byte)(TView.ShadowAttr & 0x0F),
-                    (byte)((TView.ShadowAttr >> 4) & 0x0F),
-                    (ushort)(style | ColorStyle.slNoShadow));
+                var result = new TColorAttr(TView.ShadowAttr);
+                result.SetStyle((ushort)(style | ColorStyle.slNoShadow));
+                return result;
             }
             else
             {
                 // Reverse shadow on black areas
                 var reversed = TColorAttr.ReverseAttribute(new TColorAttr(TView.ShadowAttr));
-                attr = new TColorAttr(
-                    reversed.Foreground,
-                    reversed.Background,
-                    (ushort)(style | ColorStyle.slNoShadow));
+                var result = new TColorAttr(reversed.ForegroundColor, reversed.BackgroundColor);
+                result.SetStyle((ushort)(style | ColorStyle.slNoShadow));
+                return result;
             }
         }
         return attr;
