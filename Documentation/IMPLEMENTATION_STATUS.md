@@ -2,7 +2,7 @@
 
 This document tracks the porting progress of magiblot/tvision to C# 14 / .NET 10.
 
-**Overall Progress: ~65-70% of core framework complete**
+**Overall Progress: ~85% of core framework complete**
 
 ---
 
@@ -15,7 +15,7 @@ This document tracks the porting progress of magiblot/tvision to C# 14 / .NET 10
 | 3 | Platform Layer | ✅ Complete | 100% (Windows) |
 | 4 | View Hierarchy | ✅ Working | 85% |
 | 5 | Application Framework | ✅ Working | 80% |
-| 6 | Dialog Controls | 🟡 Partial | 40% |
+| 6 | Dialog Controls | ✅ Core Complete | 90% |
 | 7 | Menu System | ✅ Complete | 100% |
 | 8 | Editor Module | ❌ Not Started | 0% |
 
@@ -126,19 +126,19 @@ Application skeleton fully functional. Window management partially implemented.
 
 ---
 
-## Phase 6: Dialog Controls 🟡 Partial (40%)
+## Phase 6: Dialog Controls ✅ Core Complete (90%)
 
-Basic controls working. Input controls mostly stubbed.
+Core dialog controls fully functional with upstream parity.
 
 | Class | File | Completion | Working | Missing |
 |-------|------|------------|---------|---------|
-| TButton | Dialogs/TButton.cs | 70% | Drawing, states, click handling | Shortcut keys, press animation |
-| TStaticText | Dialogs/TStaticText.cs | 90% | Text display | Minor refinements |
-| TLabel | Dialogs/TLabel.cs | 60% | Basic display | Shortcut key handling |
-| TInputLine | Dialogs/TInputLine.cs | 20% | Data property | Draw, editing, selection, mouse |
-| TCluster | Dialogs/TCluster.cs | 40% | Value/EnableMask, Mark() | DrawBox, keyboard/mouse handling |
-| TCheckBoxes | Dialogs/TCheckBoxes.cs | 30% | Inherits TCluster | Toggle logic |
-| TRadioButtons | Dialogs/TRadioButtons.cs | 30% | Inherits TCluster | Selection logic |
+| TButton | Dialogs/TButton.cs | ✅ 100% | Drawing, states, click handling, shortcut keys, timer-based animation | — |
+| TStaticText | Dialogs/TStaticText.cs | ✅ 100% | Multi-line text, word wrapping, centering (char 3), gfFixed | — |
+| TLabel | Dialogs/TLabel.cs | ✅ 100% | FocusLink, hotkey handling, proper colors, showMarkers | — |
+| TInputLine | Dialogs/TInputLine.cs | ✅ 100% | Draw, editing, selection, clipboard (cut/copy/paste) | Validators (separate feature) |
+| TCluster | Dialogs/TCluster.cs | ✅ 100% | DrawBox/DrawMultiBox, keyboard/mouse, Column/Row/FindSel | — |
+| TCheckBoxes | Dialogs/TCheckBoxes.cs | ✅ 100% | Draw, Mark, Press toggle logic | — |
+| TRadioButtons | Dialogs/TRadioButtons.cs | ✅ 100% | Draw, Mark, Press selection logic | — |
 | TListBox | Dialogs/TListBox.cs | 40% | GetText, NewList, FocusItem | Full functionality |
 | THistory | Dialogs/THistory.cs | 10% | Basic structure | ShowHistory, integration |
 | TSItem | Dialogs/TSItem.cs | ✅ | String item linked list | — |
@@ -254,14 +254,14 @@ The editor module is a significant undertaking (~207 C++ source files in upstrea
 ```
 TurboVision/
 ├── Core/           14 files  ✅ Complete
-├── Platform/        6 files  ✅ Complete (Windows)
+├── Platform/        8 files  ✅ Complete (Windows) + TTimerQueue, TClipboard
 ├── Views/           8 files  🟡 85% complete
-├── Dialogs/         9 files  🟡 40% complete
+├── Dialogs/         9 files  ✅ 90% complete (core controls done)
 ├── Menus/          10 files  ✅ Complete
 ├── Application/     5 files  🟡 80% complete
 └── Editor/          0 files  ❌ Not started
 
-Total: 52 C# source files
+Total: 54 C# source files
 ```
 
 **Upstream Reference:**
@@ -274,9 +274,11 @@ Total: 52 C# source files
 ## Prioritized Next Steps
 
 ### Priority 1: Core Dialog Controls
-1. **TInputLine** — Draw, editing, selection, mouse handling
-2. **TCluster/TCheckBoxes/TRadioButtons** — DrawBox, toggle/selection logic
-3. **TButton shortcut keys** — Alt+letter shortcuts, press animation
+1. **TLabel** — FocusLink, hotkey handling (Alt+letter), showMarkers support
+2. **TStaticText** — Multi-line text wrapping, centering (char 3), gfFixed
+3. **TButton** — Timer-based press animation, cmTimerExpired handling
+4. **TInputLine** — Clipboard support (cmCut/cmCopy/cmPaste)
+5. **TCluster/TCheckBoxes/TRadioButtons** — All functionality
 
 ### Priority 2: View Interaction
 4. **TFrame mouse handling** — Drag to move/resize windows
@@ -314,10 +316,16 @@ Total: 52 C# source files
 ## Recent Changes
 
 ### Latest Commits
+- ✅ TLabel — FocusLink method, hotkey handling (Alt+letter), proper Draw colors, showMarkers
+- ✅ TStaticText — Multi-line text wrapping, centering (char code 3), gfFixed grow mode
+- ✅ TButton — Timer-based press animation via cmTimerExpired broadcast
+- ✅ TInputLine — Clipboard support (cmCut, cmCopy, cmPaste commands)
+- ✅ TTimerQueue — New timer system for timed events (setTimer/killTimer)
+- ✅ TClipboard — Internal clipboard for text operations
+- ✅ TCluster/TCheckBoxes/TRadioButtons — DrawBox, keyboard/mouse handling, toggle logic
+- ✅ TStringUtils — HotKey, CstrLen, GetAltCode, CtrlToArrow helpers
 - ✅ TDrawBuffer.MoveBuf() — Buffer copying for frame rendering
 - ✅ TMenuBox sizing — Proper width/height calculation
-- ✅ TGroup.ShutDown() — Fixed infinite loop on exit
-- ✅ Win32ConsoleDriver — Unicode marshaling and control key translation
 
 ### Working Examples
 - `Examples/Hello/` — Full menu and dialog demo ✅
