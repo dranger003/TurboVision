@@ -284,7 +284,10 @@ public class TButton : TView
                         break;
 
                     case CommandConstants.cmTimerExpired:
-                        if (_animationTimer != default && Equals(ev.Message.InfoPtr, (nint)_animationTimer))
+                        // Compare timer IDs properly - InfoPtr contains a boxed TTimerId
+                        if (_animationTimer != default &&
+                            ev.Message.InfoPtr is TTimerId timerId &&
+                            timerId == _animationTimer)
                         {
                             _animationTimer = default;
                             DrawState(false);
