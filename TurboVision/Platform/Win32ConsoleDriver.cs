@@ -29,6 +29,13 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
     // Combined shift mask for checking shift state
     private const ushort kbShift = KeyConstants.kbRightShift | KeyConstants.kbLeftShift;
 
+    // Windows Console API control key state flags (from dwControlKeyState)
+    private const uint RIGHT_ALT_PRESSED = 0x0001;
+    private const uint LEFT_ALT_PRESSED = 0x0002;
+    private const uint RIGHT_CTRL_PRESSED = 0x0004;
+    private const uint LEFT_CTRL_PRESSED = 0x0008;
+    private const uint SHIFT_PRESSED = 0x0010;
+
     private static readonly ushort[] NormalCvt =
     [
         0,      0,      0,      0,      0,      0,      0,      0,
@@ -339,8 +346,17 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
         byte charCode = (byte)keyEvent.UnicodeChar;
         ev.KeyDown.KeyCode = (ushort)((scanCode << 8) | charCode);
 
-        // Set control key state
-        ev.KeyDown.ControlKeyState = (ushort)(keyEvent.dwControlKeyState & 0xFF);
+        // Translate Windows control key state to BIOS-style constants
+        // Windows: Alt=0x0001/0x0002, Ctrl=0x0004/0x0008, Shift=0x0010
+        // BIOS: Shift=0x0001/0x0002, Ctrl=0x0004, Alt=0x0008
+        ushort biosState = 0;
+        if ((keyEvent.dwControlKeyState & SHIFT_PRESSED) != 0)
+            biosState |= kbShift;
+        if ((keyEvent.dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0)
+            biosState |= KeyConstants.kbCtrlShift;
+        if ((keyEvent.dwControlKeyState & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) != 0)
+            biosState |= KeyConstants.kbAltShift;
+        ev.KeyDown.ControlKeyState = biosState;
 
         // Set text for printable characters
         if (keyEvent.UnicodeChar >= ' ' && keyEvent.UnicodeChar != 0x7F)
@@ -563,7 +579,7 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
         public bool bVisible;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct CHAR_INFO
     {
         public char UnicodeChar;
@@ -583,7 +599,7 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
         public WINDOW_BUFFER_SIZE_RECORD WindowBufferSizeEvent;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct KEY_EVENT_RECORD
     {
         public bool bKeyDown;
