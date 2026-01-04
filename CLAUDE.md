@@ -29,6 +29,7 @@ dotnet run --project Examples/Hello/Hello.csproj
 ## Build Notes
 
 - **NEVER use `dotnet build` without specifying a project** - it will try to build the solution and fail with MSB4126
+- **Use `dotnet test --project <path>` NOT `dotnet test <path>`** - the `--project` flag is required in .NET 10
 - **Do NOT specify platform-specific configurations** like `Debug|x64` or `/p:Platform=x64` - this solution only supports `Any CPU`
 
 ## Guidelines
