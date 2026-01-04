@@ -34,8 +34,18 @@ dotnet run --project Examples/Hello/Hello.csproj
 
 ## Guidelines
 
-- Follow `Reference/SOURCE.md` for upstream source quick reference
-- Consult the upstream source in `Reference/tvision/` for original source code to port
-- Follow `Documentation/CODING_STYLE.md` for code style conventions
-- No external dependencies (other than Microsoft nugets) unless otherwise noted
-- Follow `Documentation/IMPLEMENTATION_STATUS.md` for current state summary and next steps
+### Porting Reference
+- `Reference/tvision/` — upstream C++ source to port from
+- `Reference/SOURCE.md` — quick reference for upstream structure
+
+### Code Standards
+- `Documentation/CODING_STYLE.md` — C# 14/.NET 10 style conventions
+- `Documentation/BCL_MAPPING.md` — C++ → BCL type decisions
+- `Documentation/SERIALIZATION_DESIGN.md` — streaming architecture
+
+### Project Status
+- `Documentation/IMPLEMENTATION_STATUS.md` — completion status and next steps
+- `Documentation/IMPLEMENTATION_PHASES.md` — roadmap and phase dependencies
+
+### Constraints
+- No external dependencies beyond Microsoft NuGet packages
