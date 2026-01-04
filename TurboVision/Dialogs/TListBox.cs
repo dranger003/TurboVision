@@ -13,19 +13,22 @@ public class TListBox : TListViewer
     public TListBox(TRect bounds, ushort numCols, TScrollBar? scrollBar)
         : base(bounds, numCols, null, scrollBar)
     {
+        SetRange(0);
     }
 
     public override int DataSize()
     {
         // Size of list reference + selection index
-        return sizeof(int);
+        return sizeof(int) * 2;
     }
 
     public override void GetData(Span<byte> rec)
     {
-        if (rec.Length >= sizeof(int))
+        if (rec.Length >= sizeof(int) * 2)
         {
-            BitConverter.TryWriteBytes(rec, Focused);
+            // Store items pointer (as hash code for identification) and focused index
+            BitConverter.TryWriteBytes(rec, Items?.GetHashCode() ?? 0);
+            BitConverter.TryWriteBytes(rec.Slice(sizeof(int)), Focused);
         }
     }
 
@@ -34,15 +37,30 @@ public class TListBox : TListViewer
         if (Items != null && item >= 0 && item < Items.Count)
         {
             var text = Items[item];
-            int len = Math.Min(text.Length, Math.Min(maxLen, dest.Length));
+            int len = Math.Min(text.Length, Math.Min(maxLen, dest.Length - 1));
             text.AsSpan(0, len).CopyTo(dest);
+            if (len < dest.Length)
+            {
+                dest[len] = '\0';
+            }
+        }
+        else if (dest.Length > 0)
+        {
+            dest[0] = '\0';
         }
     }
 
     public virtual void NewList(List<string>? list)
     {
         Items = list;
-        SetRange((short)(Items?.Count ?? 0));
+        if (list != null)
+        {
+            SetRange((short)list.Count);
+        }
+        else
+        {
+            SetRange(0);
+        }
         if (Range > 0)
         {
             FocusItem(0);
@@ -52,9 +70,16 @@ public class TListBox : TListViewer
 
     public override void SetData(ReadOnlySpan<byte> rec)
     {
-        if (rec.Length >= sizeof(int))
+        if (rec.Length >= sizeof(int) * 2)
         {
-            FocusItem((short)BitConverter.ToInt32(rec));
+            // The upstream uses a TListBoxRec structure with items pointer and selection
+            // We can't restore the items pointer, but we can restore the selection
+            short selection = (short)BitConverter.ToInt32(rec.Slice(sizeof(int)));
+            if (Range > 0)
+            {
+                FocusItem(selection);
+            }
+            DrawView();
         }
     }
 
