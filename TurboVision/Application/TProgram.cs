@@ -181,28 +181,65 @@ public class TProgram : TGroup
 
     public override void HandleEvent(ref TEvent ev)
     {
+        // Handle Alt+1-9 window selection
+        if (ev.What == EventConstants.evKeyDown)
+        {
+            char c = TStringUtils.GetAltChar(ev.KeyDown.KeyCode);
+            if (c >= '1' && c <= '9')
+            {
+                if (CanMoveFocus())
+                {
+                    var result = Message(DeskTop, EventConstants.evBroadcast,
+                        CommandConstants.cmSelectWindowNum, c - '0');
+                    if (result != null)
+                    {
+                        ClearEvent(ref ev);
+                    }
+                }
+                else
+                {
+                    ClearEvent(ref ev);
+                }
+            }
+        }
+
         base.HandleEvent(ref ev);
 
-        if (ev.What == EventConstants.evCommand)
+        if (ev.What == EventConstants.evCommand && ev.Message.Command == CommandConstants.cmQuit)
         {
-            switch (ev.Message.Command)
+            EndModal(CommandConstants.cmQuit);
+            ClearEvent(ref ev);
+        }
+    }
+
+    /// <summary>
+    /// Helper to send a message to a target and return the result.
+    /// </summary>
+    protected static object? Message(TGroup? target, ushort what, ushort command, object? infoPtr)
+    {
+        if (target != null)
+        {
+            TEvent ev = new()
             {
-                case CommandConstants.cmQuit:
-                    ClearEvent(ref ev);
-                    EndModal(CommandConstants.cmQuit);
-                    break;
+                What = what
+            };
+            ev.Message.Command = command;
+            ev.Message.InfoPtr = infoPtr;
+            target.HandleEvent(ref ev);
+            if (ev.What == EventConstants.evNothing)
+            {
+                return ev.Message.InfoPtr;
             }
         }
-        else if (ev.What == EventConstants.evKeyDown)
-        {
-            switch (ev.KeyDown.KeyCode)
-            {
-                case KeyConstants.kbAltX:
-                    ClearEvent(ref ev);
-                    EndModal(CommandConstants.cmQuit);
-                    break;
-            }
-        }
+        return null;
+    }
+
+    /// <summary>
+    /// Helper to send a message with an integer info parameter.
+    /// </summary>
+    protected static object? Message(TGroup? target, ushort what, ushort command, int infoInt)
+    {
+        return Message(target, what, command, (object)infoInt);
     }
 
     public virtual void Idle()
@@ -214,7 +251,7 @@ public class TProgram : TGroup
 
         if (CommandSetChanged)
         {
-            // TODO: Broadcast command set changed
+            Message(this, EventConstants.evBroadcast, CommandConstants.cmCommandSetChanged, null);
             CommandSetChanged = false;
         }
 
@@ -259,10 +296,17 @@ public class TProgram : TGroup
 
     public virtual TWindow? InsertWindow(TWindow? window)
     {
-        if (window != null && ValidView(window) != null)
+        if (ValidView(window) != null)
         {
-            DeskTop?.Insert(window);
-            return window;
+            if (CanMoveFocus())
+            {
+                DeskTop?.Insert(window!);
+                return window;
+            }
+            else
+            {
+                window?.Dispose();
+            }
         }
         return null;
     }
