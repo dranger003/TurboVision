@@ -678,6 +678,28 @@ public class TView : TObject
         // TODO: Implement dragging
     }
 
+    // Timer support
+    private static TTimerQueue? _timerQueue;
+    internal static TTimerQueue TimerQueue => _timerQueue ??= new TTimerQueue();
+
+    /// <summary>
+    /// Sets a timer that fires after timeoutMs milliseconds.
+    /// If periodMs is negative (default), it's a one-shot timer.
+    /// Returns a TTimerId that can be used to identify the timer in cmTimerExpired events.
+    /// </summary>
+    public TTimerId SetTimer(int timeoutMs, int periodMs = -1)
+    {
+        return TimerQueue.SetTimer(timeoutMs, periodMs);
+    }
+
+    /// <summary>
+    /// Kills a timer by its ID.
+    /// </summary>
+    public void KillTimer(TTimerId id)
+    {
+        TimerQueue.KillTimer(id);
+    }
+
     public override void ShutDown()
     {
         Hide();
