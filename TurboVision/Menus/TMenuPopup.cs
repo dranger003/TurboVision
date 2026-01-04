@@ -1,4 +1,6 @@
+using TurboVision.Application;
 using TurboVision.Core;
+using TurboVision.Views;
 
 namespace TurboVision.Menus;
 
@@ -129,5 +131,76 @@ public class TMenuPopup : TMenuBox
         }
 
         return '\0';
+    }
+
+    /// <summary>
+    /// Spawns and executes a TMenuPopup on the application desktop.
+    /// </summary>
+    /// <param name="where">Reference position in absolute coordinates. The top left corner
+    /// of the popup will be placed at (where.X, where.Y + 1).</param>
+    /// <param name="menuItems">Chain of menu items. This function takes ownership
+    /// of the items.</param>
+    /// <param name="receiver">If not null, an evCommand event is generated with
+    /// the selected command and put into it with PutEvent.</param>
+    /// <returns>The selected command, or 0 if cancelled.</returns>
+    public static ushort PopupMenu(TPoint where, TMenuItem menuItems, TGroup? receiver = null)
+    {
+        ushort result = 0;
+        var app = TProgram.Application;
+
+        if (app != null)
+        {
+            var p = app.MakeLocal(where);
+            var bounds = new TRect(p, p);
+            var menu = new TMenu(menuItems);
+            var menuPopup = new TMenuPopup(bounds, menu);
+
+            AutoPlacePopup(menuPopup, p);
+
+            // Execute and dispose the menu
+            result = app.ExecView(menuPopup);
+            menuPopup.Dispose();
+
+            // Generate an event if requested
+            if (result != 0 && receiver != null)
+            {
+                var ev = new TEvent
+                {
+                    What = EventConstants.evCommand
+                };
+                ev.Message.Command = result;
+                receiver.PutEvent(ev);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Automatically places a popup menu to ensure it's fully visible.
+    /// Pre: TMenuPopup was constructed with bounds = TRect(p, p).
+    /// </summary>
+    private static void AutoPlacePopup(TMenuPopup m, TPoint p)
+    {
+        var app = TProgram.Application;
+        if (app == null)
+            return;
+
+        // Initially, the menu is placed above 'p'. So we need to move it.
+        var r = m.GetBounds();
+
+        // Ensure the popup does not go beyond the desktop's bottom-right corner
+        var d = app.Size - p;
+        int moveX = Math.Min(m.Size.X, d.X);
+        int moveY = Math.Min(m.Size.Y + 1, d.Y);
+        r.Move(moveX, moveY);
+
+        // If the popup then contains 'p', try to move it to a better place
+        if (r.Contains(p) && (r.B.Y - r.A.Y) < p.Y)
+        {
+            r.Move(0, -(r.B.Y - p.Y));
+        }
+
+        m.SetBounds(r);
     }
 }
