@@ -49,11 +49,11 @@ public class TMenuView : TView
         bool mouseActive = false;
 
         Current = Menu.Default;
+        TEvent e = default;
 
         do
         {
             action = MenuAction.DoNothing;
-            TEvent e = default;
             GetEvent(ref e);
 
             switch (e.What)
@@ -332,6 +332,13 @@ public class TMenuView : TView
             firstEvent = false;
 
         } while (action != MenuAction.DoReturn);
+
+        // Pass unhandled events back up (upstream behavior)
+        if (e.What != EventConstants.evNothing &&
+            (ParentMenu != null || e.What == EventConstants.evCommand))
+        {
+            PutEvent(e);
+        }
 
         if (Current != null)
         {
