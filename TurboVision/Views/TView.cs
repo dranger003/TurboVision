@@ -97,7 +97,11 @@ public class TView : TObject
     public virtual void SizeLimits(out TPoint min, out TPoint max)
     {
         min = new TPoint(0, 0);
-        max = Owner != null ? Owner.Size : new TPoint(int.MaxValue, int.MaxValue);
+        // If gfFixed is set or no owner, allow unlimited size
+        if ((GrowMode & GrowFlags.gfFixed) == 0 && Owner != null)
+            max = Owner.Size;
+        else
+            max = new TPoint(int.MaxValue, int.MaxValue);
     }
 
     /// <summary>
@@ -725,6 +729,88 @@ public class TView : TObject
         Owner?.GetEvent(ref ev);
     }
 
+    /// <summary>
+    /// Gets an event with a specified timeout. The timeout temporarily overrides
+    /// the default event wait timeout in TProgram.
+    /// </summary>
+    public virtual void GetEvent(ref TEvent ev, int timeoutMs)
+    {
+        int saveTimeout = Application.TProgram.EventTimeoutMs;
+        Application.TProgram.EventTimeoutMs = timeoutMs;
+
+        GetEvent(ref ev);
+
+        Application.TProgram.EventTimeoutMs = saveTimeout;
+    }
+
+    /// <summary>
+    /// Helper function to extract text from a keyboard event.
+    /// Returns true if text was extracted and added to the buffer.
+    /// </summary>
+    private static bool GetEventText(ref TEvent ev, Span<char> dest, ref int length)
+    {
+        if (ev.What == EventConstants.evKeyDown)
+        {
+            ReadOnlySpan<char> text;
+
+            if (ev.KeyDown.TextLength > 0)
+            {
+                text = ev.KeyDown.GetText();
+            }
+            else if (ev.KeyDown.KeyCode == KeyConstants.kbEnter)
+            {
+                text = "\n";
+            }
+            else if (ev.KeyDown.KeyCode == KeyConstants.kbTab)
+            {
+                text = "\t";
+            }
+            else
+            {
+                return false;
+            }
+
+            // Check if we have space in the destination buffer
+            var remaining = dest.Slice(length);
+            if (!text.IsEmpty && text.Length <= remaining.Length)
+            {
+                text.CopyTo(remaining);
+                length += text.Length;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Fills the destination buffer with text from consecutive keyboard events.
+    /// If the passed event is an evKeyDown, its text is also included.
+    /// Returns true if any characters were written to the buffer.
+    /// On exit, ev.What is evNothing.
+    /// </summary>
+    public bool TextEvent(ref TEvent ev, Span<char> dest, out int length)
+    {
+        length = 0;
+
+        // Try to get text from the initial event
+        GetEventText(ref ev, dest, ref length);
+
+        // Keep polling for more keyboard events with zero timeout
+        do
+        {
+            GetEvent(ref ev, 0);
+        } while (GetEventText(ref ev, dest, ref length));
+
+        // If the last event wasn't consumed, put it back
+        if (ev.What != EventConstants.evNothing)
+        {
+            PutEvent(ev);
+        }
+
+        ClearEvent(ref ev);
+        return length != 0;
+    }
+
     public virtual void PutEvent(TEvent ev)
     {
         Owner?.PutEvent(ev);
@@ -1024,6 +1110,18 @@ public class TView : TObject
     public static void GetCommands(TCommandSet commands)
     {
         CurCommandSet.CopyTo(commands);
+    }
+
+    /// <summary>
+    /// Enables or disables a set of commands based on the enable flag.
+    /// This is a convenience method that calls EnableCommands or DisableCommands.
+    /// </summary>
+    public static void SetCmdState(TCommandSet commands, bool enable)
+    {
+        if (enable)
+            EnableCommands(commands);
+        else
+            DisableCommands(commands);
     }
 
     // Modal execution
