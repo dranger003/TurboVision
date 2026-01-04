@@ -39,6 +39,7 @@ public class TMenuItem
     {
         Name = name;
         Command = command;
+        Disabled = !TView.CommandEnabled(command);
         KeyCode = keyCode;
         HelpCtx = helpCtx;
         Param = param;
@@ -54,6 +55,7 @@ public class TMenuItem
     {
         Name = name;
         Command = 0;
+        Disabled = !TView.CommandEnabled(0);
         KeyCode = keyCode;
         HelpCtx = helpCtx;
         SubMenu = subMenu;
