@@ -374,7 +374,10 @@ public class TGroup : TView
     // Buffer management
     public void GetBuffer()
     {
-        if ((Options & OptionFlags.ofBuffered) != 0 && Buffer == null)
+        // Only allocate buffer if exposed (matches C++ behavior)
+        if ((State & StateFlags.sfExposed) != 0 &&
+            (Options & OptionFlags.ofBuffered) != 0 &&
+            Buffer == null)
         {
             Buffer = new TScreenCell[Size.X * Size.Y];
         }
@@ -388,7 +391,11 @@ public class TGroup : TView
     // Locking
     public void Lock()
     {
-        LockFlag++;
+        // Only lock if buffer exists or already locked (matches C++ behavior)
+        if (Buffer != null || LockFlag != 0)
+        {
+            LockFlag++;
+        }
     }
 
     public void Unlock()
