@@ -136,6 +136,8 @@ public static class KeyConstants
     // Control key combinations
     public const ushort kbCtrlLeft = 0x7300;
     public const ushort kbCtrlRight = 0x7400;
+    public const ushort kbCtrlUp = 0x8D00;
+    public const ushort kbCtrlDown = 0x9100;
     public const ushort kbCtrlHome = 0x7700;
     public const ushort kbCtrlEnd = 0x7500;
     public const ushort kbCtrlPgUp = 0x8400;

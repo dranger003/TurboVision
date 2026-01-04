@@ -100,6 +100,27 @@ public class TDrawBuffer
     }
 
     /// <summary>
+    /// Writes a string to the buffer at the specified position with a maximum length.
+    /// </summary>
+    public int MoveStr(int indent, ReadOnlySpan<char> str, TColorAttr attr, int maxLen)
+    {
+        if (indent >= _data.Length)
+        {
+            return 0;
+        }
+
+        int count = 0;
+        int limit = Math.Min(str.Length, maxLen);
+        for (int i = 0; i < limit && indent + count < _data.Length; i++)
+        {
+            _data[indent + count].SetCell(str[i], attr);
+            count++;
+        }
+
+        return count;
+    }
+
+    /// <summary>
     /// Writes a C-style string (with ~ shortcuts) to the buffer.
     /// Characters between ~ are rendered with the highlight attribute.
     /// </summary>
