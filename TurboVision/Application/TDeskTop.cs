@@ -14,6 +14,17 @@ public class TDeskTop : TGroup
     public TBackground? Background { get; set; }
     public bool TileColumnsFirst { get; protected set; }
 
+    // Cascade state variables (used by forEach callbacks)
+    private int _cascadeNum;
+    private TView? _lastView;
+
+    // Tile state variables (used by forEach callbacks)
+    private int _numTileable;
+    private int _numCols;
+    private int _numRows;
+    private int _leftOver;
+    private int _tileNum;
+
     public TDeskTop(TRect bounds) : base(bounds)
     {
         GrowMode = GrowFlags.gfGrowHiX | GrowFlags.gfGrowHiY;
@@ -33,37 +44,64 @@ public class TDeskTop : TGroup
         return new TBackground(r, DefaultBackground);
     }
 
+    /// <summary>
+    /// Returns true if view is tileable (ofTileable option set and visible).
+    /// </summary>
+    private static bool Tileable(TView p)
+    {
+        return (p.Options & OptionFlags.ofTileable) != 0 && (p.State & StateFlags.sfVisible) != 0;
+    }
+
+    /// <summary>
+    /// Counts tileable views and tracks the last one found.
+    /// </summary>
+    private void DoCount(TView p, object? _)
+    {
+        if (Tileable(p))
+        {
+            _cascadeNum++;
+            _lastView = p;
+        }
+    }
+
+    /// <summary>
+    /// Cascades a single view within the given rectangle.
+    /// </summary>
+    private void DoCascade(TView p, object? args)
+    {
+        if (Tileable(p) && _cascadeNum >= 0)
+        {
+            var r = (TRect)args!;
+            var nr = new TRect(r.A.X + _cascadeNum, r.A.Y + _cascadeNum, r.B.X, r.B.Y);
+            p.Locate(ref nr);
+            _cascadeNum--;
+        }
+    }
+
+    /// <summary>
+    /// Cascades all tileable windows within the given rectangle.
+    /// </summary>
     public void Cascade(TRect r)
     {
-        // TODO: Cascade windows within the given rectangle
-        var views = new List<TView>();
-        ForEach((view, _) =>
+        _cascadeNum = 0;
+        _lastView = null;
+        ForEach(DoCount, null);
+
+        if (_cascadeNum > 0)
         {
-            if (view is TWindow && (view.Options & OptionFlags.ofTileable) != 0)
+            _lastView!.SizeLimits(out var min, out _);
+            if (min.X > r.B.X - r.A.X - _cascadeNum ||
+                min.Y > r.B.Y - r.A.Y - _cascadeNum)
             {
-                views.Add(view);
+                TileError();
             }
-        }, null);
-
-        if (views.Count == 0)
-        {
-            return;
-        }
-
-        int numWindows = views.Count;
-        int step = (r.B.X - r.A.X - 20) / numWindows;
-        if (step < 2) step = 2;
-
-        for (int i = 0; i < numWindows; i++)
-        {
-            var view = views[i];
-            var bounds = new TRect(
-                r.A.X + i * step,
-                r.A.Y + i,
-                r.B.X - (numWindows - 1 - i) * step,
-                r.B.Y - (numWindows - 1 - i)
-            );
-            view.Locate(ref bounds);
+            else
+            {
+                _cascadeNum--;
+                Lock();
+                ForEach(DoCascade, r);
+                Unlock();
+            }
         }
     }
 
@@ -76,61 +114,153 @@ public class TDeskTop : TGroup
             switch (ev.Message.Command)
             {
                 case CommandConstants.cmNext:
-                    ClearEvent(ref ev);
-                    SelectNext(false);
+                    if (Valid(CommandConstants.cmReleasedFocus))
+                    {
+                        SelectNext(false);
+                    }
                     break;
                 case CommandConstants.cmPrev:
-                    ClearEvent(ref ev);
-                    SelectNext(true);
+                    if (Valid(CommandConstants.cmReleasedFocus))
+                    {
+                        Current?.PutInFrontOf(Background);
+                    }
                     break;
+                default:
+                    return;
             }
-        }
-        else if (ev.What == EventConstants.evBroadcast)
-        {
-            if (ev.Message.Command == CommandConstants.cmSelectWindowNum)
-            {
-                // TODO: Select window by number
-            }
+            ClearEvent(ref ev);
         }
     }
 
-    public void Tile(TRect r)
+    /// <summary>
+    /// Integer square root approximation.
+    /// </summary>
+    private static int ISqr(int i)
     {
-        // TODO: Tile windows within the given rectangle
-        var views = new List<TView>();
-        ForEach((view, _) =>
+        int res1 = 2;
+        int res2 = i / res1;
+        while (Math.Abs(res1 - res2) > 1)
         {
-            if (view is TWindow && (view.Options & OptionFlags.ofTileable) != 0)
-            {
-                views.Add(view);
-            }
-        }, null);
+            res1 = (res1 + res2) / 2;
+            res2 = i / res1;
+        }
+        return res1 < res2 ? res1 : res2;
+    }
 
-        if (views.Count == 0)
+    /// <summary>
+    /// Finds the most equal divisors for tiling.
+    /// </summary>
+    private static void MostEqualDivisors(int n, out int x, out int y, bool favorY)
+    {
+        int i = ISqr(n);
+        if (n % i != 0)
         {
-            return;
+            if (n % (i + 1) == 0)
+            {
+                i++;
+            }
+        }
+        if (i < n / i)
+        {
+            i = n / i;
         }
 
-        int numWindows = views.Count;
-        int cols = (int)Math.Ceiling(Math.Sqrt(numWindows));
-        int rows = (numWindows + cols - 1) / cols;
-
-        int width = (r.B.X - r.A.X) / cols;
-        int height = (r.B.Y - r.A.Y) / rows;
-
-        for (int i = 0; i < numWindows; i++)
+        if (favorY)
         {
-            var view = views[i];
-            int col = TileColumnsFirst ? i / rows : i % cols;
-            int row = TileColumnsFirst ? i % rows : i / cols;
+            x = n / i;
+            y = i;
+        }
+        else
+        {
+            y = n / i;
+            x = i;
+        }
+    }
 
-            var bounds = new TRect(
-                r.A.X + col * width,
-                r.A.Y + row * height,
-                r.A.X + (col + 1) * width,
-                r.A.Y + (row + 1) * height
-            );
-            view.Locate(ref bounds);
+    /// <summary>
+    /// Counts tileable views for tile operation.
+    /// </summary>
+    private void DoCountTileable(TView p, object? _)
+    {
+        if (Tileable(p))
+        {
+            _numTileable++;
+        }
+    }
+
+    /// <summary>
+    /// Calculates divider location for proportional splitting.
+    /// </summary>
+    private static int DividerLoc(int lo, int hi, int num, int pos)
+    {
+        return (int)((long)(hi - lo) * pos / num + lo);
+    }
+
+    /// <summary>
+    /// Calculates the rectangle for a tile at a given position.
+    /// </summary>
+    private TRect CalcTileRect(int pos, TRect r)
+    {
+        int x, y;
+        int d = (_numCols - _leftOver) * _numRows;
+
+        if (pos < d)
+        {
+            x = pos / _numRows;
+            y = pos % _numRows;
+        }
+        else
+        {
+            x = (pos - d) / (_numRows + 1) + (_numCols - _leftOver);
+            y = (pos - d) % (_numRows + 1);
+        }
+
+        var nRect = new TRect(
+            DividerLoc(r.A.X, r.B.X, _numCols, x),
+            pos >= d ? DividerLoc(r.A.Y, r.B.Y, _numRows + 1, y) : DividerLoc(r.A.Y, r.B.Y, _numRows, y),
+            DividerLoc(r.A.X, r.B.X, _numCols, x + 1),
+            pos >= d ? DividerLoc(r.A.Y, r.B.Y, _numRows + 1, y + 1) : DividerLoc(r.A.Y, r.B.Y, _numRows, y + 1)
+        );
+        return nRect;
+    }
+
+    /// <summary>
+    /// Tiles a single view.
+    /// </summary>
+    private void DoTile(TView p, object? args)
+    {
+        if (Tileable(p))
+        {
+            var r = CalcTileRect(_tileNum, (TRect)args!);
+            p.Locate(ref r);
+            _tileNum--;
+        }
+    }
+
+    /// <summary>
+    /// Tiles all tileable windows within the given rectangle.
+    /// </summary>
+    public void Tile(TRect r)
+    {
+        _numTileable = 0;
+        ForEach(DoCountTileable, null);
+
+        if (_numTileable > 0)
+        {
+            MostEqualDivisors(_numTileable, out _numCols, out _numRows, !TileColumnsFirst);
+
+            if ((r.B.X - r.A.X) / _numCols == 0 || (r.B.Y - r.A.Y) / _numRows == 0)
+            {
+                TileError();
+            }
+            else
+            {
+                _leftOver = _numTileable % _numCols;
+                _tileNum = _numTileable - 1;
+                Lock();
+                ForEach(DoTile, r);
+                Unlock();
+            }
         }
     }
 
