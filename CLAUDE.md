@@ -48,4 +48,4 @@ dotnet run --project Examples/Hello/Hello.csproj
 - `Documentation/IMPLEMENTATION_PHASES.md` — roadmap and phase dependencies
 
 ### Constraints
-- No external dependencies beyond Microsoft NuGet packages
+- No external dependencies
