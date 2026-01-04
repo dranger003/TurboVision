@@ -673,9 +673,186 @@ public class TView : TObject
     }
 
     // Dragging
+
+    /// <summary>
+    /// Waits for a key event by polling GetEvent until evKeyDown is received.
+    /// </summary>
+    public void KeyEvent(ref TEvent ev)
+    {
+        do
+        {
+            GetEvent(ref ev);
+        } while (ev.What != EventConstants.evKeyDown);
+    }
+
+    /// <summary>
+    /// Helper method for keyboard-based dragging. Modifies position or size based on mode and shift state.
+    /// </summary>
+    private static void Change(byte mode, TPoint delta, ref TPoint p, ref TPoint s, ushort ctrlState)
+    {
+        if ((mode & DragFlags.dmDragMove) != 0 && (ctrlState & KeyConstants.kbShift) == 0)
+        {
+            p = p + delta;
+        }
+        else if ((mode & DragFlags.dmDragGrow) != 0 && (ctrlState & KeyConstants.kbShift) != 0)
+        {
+            s = s + delta;
+        }
+    }
+
+    /// <summary>
+    /// Constrains position and size within limits, then calls Locate.
+    /// </summary>
+    private void MoveGrow(TPoint p, TPoint s, TRect limits, TPoint minSize, TPoint maxSize, byte mode)
+    {
+        // Constrain size
+        s = new TPoint(
+            Math.Min(Math.Max(s.X, minSize.X), maxSize.X),
+            Math.Min(Math.Max(s.Y, minSize.Y), maxSize.Y)
+        );
+
+        // Constrain position - allow partial visibility
+        p = new TPoint(
+            Math.Min(Math.Max(p.X, limits.A.X - s.X + 1), limits.B.X - 1),
+            Math.Min(Math.Max(p.Y, limits.A.Y - s.Y + 1), limits.B.Y - 1)
+        );
+
+        // Apply limit flags
+        if ((mode & DragFlags.dmLimitLoX) != 0)
+            p = new TPoint(Math.Max(p.X, limits.A.X), p.Y);
+        if ((mode & DragFlags.dmLimitLoY) != 0)
+            p = new TPoint(p.X, Math.Max(p.Y, limits.A.Y));
+        if ((mode & DragFlags.dmLimitHiX) != 0)
+            p = new TPoint(Math.Min(p.X, limits.B.X - s.X), p.Y);
+        if ((mode & DragFlags.dmLimitHiY) != 0)
+            p = new TPoint(p.X, Math.Min(p.Y, limits.B.Y - s.Y));
+
+        var r = new TRect(p.X, p.Y, p.X + s.X, p.Y + s.Y);
+        Locate(ref r);
+    }
+
+    /// <summary>
+    /// Implements drag to move/resize functionality via mouse or keyboard.
+    /// </summary>
     public virtual void DragView(TEvent ev, byte mode, TRect limits, TPoint minSize, TPoint maxSize)
     {
-        // TODO: Implement dragging
+        TRect saveBounds;
+        TPoint p, s;
+
+        SetState(StateFlags.sfDragging, true);
+
+        if (ev.What == EventConstants.evMouseDown)
+        {
+            // Mouse-based dragging
+            if ((mode & DragFlags.dmDragMove) != 0)
+            {
+                // Drag to move
+                p = Origin - ev.Mouse.Where;
+                do
+                {
+                    var newPos = ev.Mouse.Where + p;
+                    MoveGrow(newPos, Size, limits, minSize, maxSize, mode);
+                } while (MouseEvent(ref ev, EventConstants.evMouseMove));
+            }
+            else if ((mode & DragFlags.dmDragGrow) != 0)
+            {
+                // Drag to resize (bottom-right corner)
+                p = Size - ev.Mouse.Where;
+                do
+                {
+                    var newSize = ev.Mouse.Where + p;
+                    MoveGrow(Origin, newSize, limits, minSize, maxSize, mode);
+                } while (MouseEvent(ref ev, EventConstants.evMouseMove));
+            }
+            else // dmDragGrowLeft
+            {
+                // Drag to resize (bottom-left corner)
+                var bounds = GetBounds();
+                s = Origin;
+                s = new TPoint(s.X, s.Y + Size.Y);
+                p = s - ev.Mouse.Where;
+                do
+                {
+                    var mousePos = ev.Mouse.Where + p;
+                    bounds = new TRect(
+                        Math.Min(Math.Max(mousePos.X, bounds.B.X - maxSize.X), bounds.B.X - minSize.X),
+                        bounds.A.Y,
+                        bounds.B.X,
+                        mousePos.Y
+                    );
+                    var newOrigin = new TPoint(bounds.A.X, bounds.A.Y);
+                    var newSize = new TPoint(bounds.B.X - bounds.A.X, bounds.B.Y - bounds.A.Y);
+                    MoveGrow(newOrigin, newSize, limits, minSize, maxSize, mode);
+                } while (MouseEvent(ref ev, EventConstants.evMouseMove));
+            }
+        }
+        else
+        {
+            // Keyboard-based dragging
+            var goLeft = new TPoint(-1, 0);
+            var goRight = new TPoint(1, 0);
+            var goUp = new TPoint(0, -1);
+            var goDown = new TPoint(0, 1);
+            var goCtrlLeft = new TPoint(-8, 0);
+            var goCtrlRight = new TPoint(8, 0);
+            var goCtrlUp = new TPoint(0, -4);
+            var goCtrlDown = new TPoint(0, 4);
+
+            saveBounds = GetBounds();
+            do
+            {
+                p = Origin;
+                s = Size;
+                KeyEvent(ref ev);
+                switch (ev.KeyDown.KeyCode & 0xFF00)
+                {
+                    case KeyConstants.kbLeft:
+                        Change(mode, goLeft, ref p, ref s, ev.KeyDown.ControlKeyState);
+                        break;
+                    case KeyConstants.kbRight:
+                        Change(mode, goRight, ref p, ref s, ev.KeyDown.ControlKeyState);
+                        break;
+                    case KeyConstants.kbUp:
+                        Change(mode, goUp, ref p, ref s, ev.KeyDown.ControlKeyState);
+                        break;
+                    case KeyConstants.kbDown:
+                        Change(mode, goDown, ref p, ref s, ev.KeyDown.ControlKeyState);
+                        break;
+                    case KeyConstants.kbCtrlLeft:
+                        Change(mode, goCtrlLeft, ref p, ref s, ev.KeyDown.ControlKeyState);
+                        break;
+                    case KeyConstants.kbCtrlRight:
+                        Change(mode, goCtrlRight, ref p, ref s, ev.KeyDown.ControlKeyState);
+                        break;
+                    case KeyConstants.kbCtrlUp:
+                        Change(mode, goCtrlUp, ref p, ref s, ev.KeyDown.ControlKeyState);
+                        break;
+                    case KeyConstants.kbCtrlDown:
+                        Change(mode, goCtrlDown, ref p, ref s, ev.KeyDown.ControlKeyState);
+                        break;
+                    case KeyConstants.kbHome:
+                        p = new TPoint(limits.A.X, p.Y);
+                        break;
+                    case KeyConstants.kbEnd:
+                        p = new TPoint(limits.B.X - s.X, p.Y);
+                        break;
+                    case KeyConstants.kbPgUp:
+                        p = new TPoint(p.X, limits.A.Y);
+                        break;
+                    case KeyConstants.kbPgDn:
+                        p = new TPoint(p.X, limits.B.Y - s.Y);
+                        break;
+                }
+                MoveGrow(p, s, limits, minSize, maxSize, mode);
+            } while (ev.KeyDown.KeyCode != KeyConstants.kbEsc && ev.KeyDown.KeyCode != KeyConstants.kbEnter);
+
+            if (ev.KeyDown.KeyCode == KeyConstants.kbEsc)
+            {
+                Locate(ref saveBounds);
+            }
+        }
+
+        SetState(StateFlags.sfDragging, false);
     }
 
     // Timer support
