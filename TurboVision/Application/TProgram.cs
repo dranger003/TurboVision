@@ -217,6 +217,21 @@ public class TProgram : TGroup
             // TODO: Broadcast command set changed
             CommandSetChanged = false;
         }
+
+        // Process expired timers
+        TView.TimerQueue.ProcessTimers(HandleTimerExpired);
+    }
+
+    private void HandleTimerExpired(TTimerId id)
+    {
+        // Broadcast cmTimerExpired to all views
+        TEvent ev = new()
+        {
+            What = EventConstants.evBroadcast
+        };
+        ev.Message.Command = CommandConstants.cmTimerExpired;
+        ev.Message.InfoPtr = id;
+        HandleEvent(ref ev);
     }
 
     public virtual void InitScreen()
