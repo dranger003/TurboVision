@@ -4,35 +4,120 @@ This document tracks the porting progress of magiblot/tvision to C# 14 / .NET 10
 
 **Overall Progress: ~85% of core framework complete**
 
+> **Note:** The hierarchical WriteBuf/TVWrite system is implemented and working for standard BIOS colors.
+> Full upstream parity requires implementing the complete TColorAttr/TColorDesired color model
+> which supports RGB, XTerm-256, and default terminal colors.
+
 ---
 
-## Critical Gap: View Writing / Buffering Pipeline
+## View Writing / Buffering Pipeline ⚠️ Partial Implementation
 
-The rendering layer has significant architectural differences from the upstream C++ implementation that prevent full parity. The current implementation uses a simplified direct-to-screen approach instead of the hierarchical buffer system used in the original Turbo Vision.
+The rendering layer implements the upstream hierarchical buffer system via the `TVWrite` class, matching the `tvwrite.cpp` architecture. However, several gaps remain for full parity.
 
-### Current Status: ⚠️ Partial Implementation
+### Current Status: ⚠️ Core Working, Gaps Remain
 
 | Feature | Upstream | C# Port | Status |
 |---------|----------|---------|--------|
 | WriteBuf to screen | ✅ | ✅ | Working |
-| WriteBuf to parent buffer | ✅ | ❌ | **Missing** |
-| Hierarchical buffer propagation | ✅ | ❌ | **Missing** |
-| Shadow rendering during write | ✅ | ❌ | **Missing** |
-| Clip-aware view occlusion | ✅ | ❌ | **Missing** |
-| Lock/Unlock buffer management | ✅ | 🟡 | Partial |
-| TGroup buffer allocation | ✅ | ✅ | Working (disabled for TWindow) |
+| WriteBuf to parent buffer | ✅ | ✅ | Working |
+| Hierarchical buffer propagation | ✅ | ✅ | Working |
+| Shadow rendering during write | ✅ | ⚠️ | Partial - BIOS colors only |
+| Clip-aware view occlusion | ✅ | ✅ | Working |
+| Lock/Unlock buffer management | ✅ | ✅ | Working |
+| TGroup buffer allocation | ✅ | ✅ | Working |
+| TColorAttr full color model | ✅ | ❌ | BIOS only (see gaps) |
+| Legacy ushort buffer support | ✅ | ❌ | Intentionally omitted |
 
-### Workaround Applied
+### Implementation Details
 
-To avoid black dialog rendering, `TWindow` (and by inheritance `TDialog`) currently disables buffering:
-```csharp
-Options &= unchecked((ushort)~OptionFlags.ofBuffered);
+The `TVWrite` class (`TurboVision/Views/TVWrite.cs`) implements the full hierarchical write system:
+- **L0**: Entry point - clips against view bounds, initializes shadow counter
+- **L10**: Owner propagation - converts to owner coordinates, clips against owner's clip rect
+- **L20**: View occlusion check - Z-order traversal, shadow detection, recursive splitting
+- **L30**: Recursive split - saves state, limits region, recurses for partial occlusion
+- **L40**: Buffer write + propagation - writes to owner's buffer, propagates up if unlocked
+- **L50**: Buffer copy - actual memory copy with shadow application, flushes to screen
+
+### TColorAttr Style Flags
+
+`TColorAttr` now supports style flags including `slNoShadow` (0x200) to prevent double-shadowing of cells.
+
+### Remaining Gaps for Full Parity
+
+#### Gap 1: TColorAttr Data Model (Critical)
+
+**Upstream** (`colors.h` lines 496-524):
+```cpp
+struct TColorAttr {
+    uint64_t
+        _style : 10,  // Style flags
+        _fg    : 27,  // Foreground (TColorDesired - BIOS/RGB/XTerm/Default)
+        _bg    : 27;  // Background (TColorDesired - BIOS/RGB/XTerm/Default)
+};
 ```
 
-This is a **temporary workaround**, not a proper fix. It causes:
-- No shadow rendering for windows/dialogs
-- Potential flicker during complex redraws
-- Suboptimal performance for complex view hierarchies
+**C# Port** (`TColorAttr.cs`):
+```csharp
+private byte _fg;      // 4-bit BIOS color only
+private byte _bg;      // 4-bit BIOS color only
+private ushort _style; // Style flags (correct)
+```
+
+**Impact**: The C# port only supports 4-bit BIOS colors. Upstream supports:
+- BIOS colors (4-bit, indexed 0-15)
+- RGB colors (24-bit, 0xRRGGBB)
+- XTerm colors (8-bit, 0-255 palette index)
+- Default color (terminal default)
+
+**To fix**: Implement `TColorDesired` union type and update `TColorAttr` to use 27-bit fg/bg fields.
+
+#### Gap 2: Shadow ApplyShadow Color Handling
+
+**Upstream** (`tvwrite.cpp` lines 59-84):
+```cpp
+static TColorAttr applyShadow(TColorAttr attr) noexcept {
+    auto style = ::getStyle(attr);
+    if (!(style & slNoShadow)) {
+        if (::getBack(attr).toBIOS(false) != 0)  // Uses TColorDesired.toBIOS()
+            attr = shadowAttr;
+        else
+            attr = reverseAttribute(shadowAttr);
+        ::setStyle(attr, style | slNoShadow);
+    }
+    return attr;
+}
+```
+
+**C# Port** (`TVWrite.cs` lines 308-333):
+```csharp
+if (attr.Background != 0)  // Direct byte comparison, not TColorDesired.toBIOS()
+```
+
+**Impact**: Works correctly for BIOS colors, but incorrect behavior for RGB/XTerm colors where Background might be non-zero but would quantize to 0 in BIOS.
+
+#### Gap 3: L20 Shadow Region Logic Structure
+
+**Upstream** uses a `do { } while (0)` idiom for complex branching with shadow region detection. The C# implementation restructures this logic. While functionally similar for common cases, edge cases with:
+- Views with `sfShadow` flag
+- Overlapping shadow regions from multiple windows
+- Shadow regions at exact boundary positions
+
+...may behave differently. Needs comprehensive testing with:
+1. Multiple overlapping windows with shadows
+2. Windows at screen edges
+3. Shadow regions spanning multiple sibling views
+
+#### Gap 4: Missing writeView Overloads
+
+**Upstream** (`tvwrite.cpp` lines 87-97):
+```cpp
+void TView::writeView(short x, short y, short count, const void _FAR* b);
+void TView::writeView(short x, short y, short count, const TScreenCell* b);
+```
+
+**C# Port**: Only has `TScreenCell` version.
+
+**Impact**: Low - Legacy ushort buffer format intentionally not supported. All C# code should use `TScreenCell`.
 
 ---
 
@@ -355,10 +440,10 @@ Once the hierarchical WriteBuf is implemented:
 
 | Phase | Component | Status | Completion |
 |-------|-----------|--------|------------|
-| 1 | Core Primitives | ✅ Complete | 100% |
+| 1 | Core Primitives | ⚠️ Partial | 85% (TColorAttr needs full model) |
 | 2 | Event System | ✅ Complete | 100% |
 | 3 | Platform Layer | ✅ Complete | 100% (Windows) |
-| 4 | View Hierarchy | ⚠️ Partial | 85% |
+| 4 | View Hierarchy | ⚠️ Mostly Complete | 90% (TVWrite edge cases) |
 | 5 | Application Framework | ✅ Complete | 100% |
 | 6 | Dialog Controls | ✅ Complete | 100% |
 | 7 | Menu System | ✅ Complete | 100% |
@@ -366,19 +451,25 @@ Once the hierarchical WriteBuf is implemented:
 
 **Build Status:** ✅ Clean
 **Test Status:** ✅ 88 tests passing
-**Hello Example:** ⚠️ Functional but missing shadow rendering
+**Hello Example:** ✅ Functional with BIOS color shadows
+
+### Known Limitations
+- **Color System**: Only 4-bit BIOS colors supported (not RGB/XTerm/Default)
+- **Shadow Rendering**: Works for BIOS colors; may misbehave with extended colors
+- **TVWrite L20**: Edge cases with overlapping shadow regions need testing
 
 ---
 
-## Phase 1: Core Primitives ✅ Complete
+## Phase 1: Core Primitives ⚠️ Mostly Complete
 
-All core types are fully implemented with comprehensive test coverage.
+Core types implemented with test coverage. TColorAttr needs full color model for parity.
 
 | Class | File | Status | Notes |
 |-------|------|--------|-------|
 | TPoint | Core/TPoint.cs | ✅ | 2D coordinates with operators |
 | TRect | Core/TRect.cs | ✅ | Rectangle geometry (Move, Grow, Intersect, Union, Contains) |
-| TColorAttr | Core/TColorAttr.cs | ✅ | Foreground/background colors |
+| TColorAttr | Core/TColorAttr.cs | ⚠️ | BIOS only - needs TColorDesired |
+| TColorDesired | — | ❌ | Not implemented (required for full color model) |
 | TScreenCell | Core/TScreenCell.cs | ✅ | Character + attribute pair |
 | TAttrPair | Core/TAttrPair.cs | ✅ | Normal/highlight attribute pairs |
 | TDrawBuffer | Core/TDrawBuffer.cs | ✅ | MoveBuf, MoveChar, MoveStr, MoveCStr, PutChar |
@@ -420,29 +511,31 @@ Windows Console API fully implemented.
 
 ---
 
-## Phase 4: View Hierarchy ⚠️ Partial (85%)
+## Phase 4: View Hierarchy ⚠️ Mostly Complete
 
-Core view system functional but missing hierarchical buffer writes.
+Core view system with hierarchical buffer writes and basic shadow support. Color model needs work.
 
-| Class | File | Status | Gap |
-|-------|------|--------|-----|
-| TView | Views/TView.cs | ⚠️ | WriteBuf needs hierarchy support |
-| TGroup | Views/TGroup.cs | ⚠️ | Buffer writes bypass hierarchy |
+| Class | File | Status | Notes |
+|-------|------|--------|-------|
+| TView | Views/TView.cs | ✅ | WriteBuf hierarchy via TVWrite |
+| TGroup | Views/TGroup.cs | ✅ | Buffer management complete |
+| TVWrite | Views/TVWrite.cs | ⚠️ | Core working, edge cases untested |
 | TFrame | Views/TFrame.cs | ✅ | — |
 | TScrollBar | Views/TScrollBar.cs | ✅ | — |
 | TScroller | Views/TScroller.cs | ✅ | — |
 | TListViewer | Views/TListViewer.cs | ✅ | — |
 | TBackground | Views/TBackground.cs | ✅ | — |
 
-### Missing Features in TView.WriteBuf
+### Implemented Features in TView.WriteBuf
 
 | Feature | Required For | Status |
 |---------|--------------|--------|
-| Write to parent buffer | Buffered groups | ❌ Missing |
-| Propagate up when unlocked | Screen output | ❌ Missing |
-| Z-order occlusion check | Overlapping views | ❌ Missing |
-| Shadow depth tracking | Shadow rendering | ❌ Missing |
-| View intersection/split | Partial occlusion | ❌ Missing |
+| Write to parent buffer | Buffered groups | ✅ Working |
+| Propagate up when unlocked | Screen output | ✅ Working |
+| Z-order occlusion check | Overlapping views | ✅ Working |
+| Shadow depth tracking | Shadow rendering | ⚠️ Basic working |
+| View intersection/split | Partial occlusion | ✅ Working |
+| Full color model (RGB/XTerm) | True color support | ❌ Not implemented |
 
 ---
 
@@ -450,11 +543,11 @@ Core view system functional but missing hierarchical buffer writes.
 
 | Class | File | Status | Notes |
 |-------|------|--------|-------|
-| TProgram | Application/TProgram.cs | ✅ | Event loop, command sets |
+| TProgram | Application/TProgram.cs | ✅ | Event loop, command sets, screen buffer management |
 | TApplication | Application/TApplication.cs | ✅ | Win32 driver init |
 | TDeskTop | Application/TDeskTop.cs | ✅ | Window management |
 | TDialog | Application/TDialog.cs | ✅ | Modal execution |
-| TWindow | Application/TWindow.cs | ⚠️ | Buffering disabled as workaround |
+| TWindow | Application/TWindow.cs | ✅ | Full buffering with shadow support |
 
 ---
 
@@ -547,36 +640,38 @@ All dialog controls fully functional.
 
 ## Prioritized Next Steps
 
-### Priority 1: Hierarchical WriteBuf (CRITICAL)
-1. Implement `TVWrite` class with L0-L50 methods
-2. Add Z-order traversal and occlusion detection
-3. Implement shadow depth tracking
-4. Add recursive region splitting for partial occlusion
-5. Update `TView.WriteBuf` to use new implementation
+### ~~Priority 1: Hierarchical WriteBuf~~ ⚠️ MOSTLY COMPLETE
+TVWrite class implements core hierarchical write system. Remaining work:
+- [ ] Test L20 shadow region logic with overlapping windows
+- [ ] Verify shadow rendering at screen boundaries
 
-### Priority 2: Shadow Rendering
-1. Implement `ApplyShadow()` color transformation
-2. Add shadow collision detection in L20
-3. Track shadow state to prevent double-shadow
-4. Re-enable `sfShadow` state for TWindow
+### ~~Priority 2: Shadow Rendering~~ ⚠️ PARTIAL
+Basic shadow support works with slNoShadow style flag. Remaining work:
+- [ ] Full TColorAttr/TColorDesired implementation (Gap 1)
+- [ ] Fix ApplyShadow for non-BIOS colors (Gap 2)
 
-### Priority 3: Re-enable Window Buffering
-1. Remove `ofBuffered` disable from TWindow
-2. Test buffer population via child writes
-3. Verify lock/unlock behavior
+### ~~Priority 3: Re-enable Window Buffering~~ ✅ COMPLETE
+TWindow now uses full buffering with hierarchical write support.
 
-### Priority 4: Standard Dialogs
+### Priority 1: TColorAttr Full Color Model (CRITICAL for full parity)
+Implement upstream-compatible color system:
+- [ ] `TColorDesired` union type (BIOS/RGB/XTerm/Default)
+- [ ] Update `TColorAttr` to use 27-bit fg/bg fields
+- [ ] Update `ApplyShadow` to use `TColorDesired.toBIOS()`
+- [ ] Color conversion functions (RGBtoBIOS, XTermtoBIOS, etc.)
+
+### Priority 2: Standard Dialogs
 - messageBox(), inputBox()
 
-### Priority 5: Editor Module
+### Priority 3: Editor Module
 - TEditor, TMemo, TFileEditor
 
-### Priority 6: File Dialogs
+### Priority 4: File Dialogs
 - TFileDialog, TChDirDialog
 
-### Priority 7: Advanced Features
+### Priority 5: Advanced Features
 - Validators, Help system, Collections
 
-### Priority 8: Cross-Platform
+### Priority 6: Cross-Platform
 - Linux driver (ncurses-based)
 - macOS support
