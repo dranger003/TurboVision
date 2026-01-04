@@ -26,6 +26,12 @@ dotnet run --project Examples/Hello/Hello.csproj
 ## Build Notes
 
 - **Do NOT specify platform-specific configurations** like `Debug|x64` or `/p:Platform=x64`. This solution only supports `Any CPU`. Use the simple commands above without platform arguments, or if you must specify: `/p:Platform="Any CPU"`.
+- **If you get MSB4126 errors** about invalid solution configuration, your environment may have `Platform=x64` set. Build individual projects directly instead:
+  ```bash
+  dotnet build TurboVision/TurboVision.csproj
+  dotnet test --project TurboVision.Tests/TurboVision.Tests.csproj
+  dotnet build Examples/Hello/Hello.csproj
+  ```
 
 ## Guidelines
 
