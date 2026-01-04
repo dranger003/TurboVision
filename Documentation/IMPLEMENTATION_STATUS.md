@@ -527,14 +527,14 @@ The upstream C++ streaming system uses pointer-based object graphs and a binary 
 
 ## Prioritized Next Steps
 
-### Priority 1: Complete Core Infrastructure
+### Priority 1: Complete Core Infrastructure (COMPLETED)
 1. Implement `TView.TextEvent()` - Text accumulation for efficient input
 2. Implement `TView.GetEvent(timeout)` - Timeout-based event waiting
 3. Complete `TMenuPopup.Execute()` and `HandleEvent()`
 4. Implement `TStatusLine` hint text display
 5. Integrate `TTimerQueue` with event loop
 
-### Priority 2: Missing Dialog Classes
+### Priority 2: Missing Dialog Classes (COMPLETED)
 1. Implement `TMultiCheckBoxes` - Variable-width multi-checkbox
 2. Implement `TParamText` - Formatted parameterized text
 
