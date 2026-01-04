@@ -716,14 +716,8 @@ public class TGroup : TView
         if ((aState & (StateFlags.sfActive | StateFlags.sfDragging)) != 0)
         {
             Lock();
-            try
-            {
-                ForEach((view, _) => view.SetState(aState, enable), null);
-            }
-            finally
-            {
-                Unlock();
-            }
+            ForEach((view, _) => view.SetState(aState, enable), null);
+            Unlock();
         }
 
         // For sfFocused: only propagate to current view
