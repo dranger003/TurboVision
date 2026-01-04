@@ -2,7 +2,7 @@
 
 This document tracks the porting progress of magiblot/tvision to C# 14 / .NET 10.
 
-**Overall Progress: ~85% of core framework complete**
+**Overall Progress: ~90% of core framework complete**
 
 ---
 
@@ -13,9 +13,9 @@ This document tracks the porting progress of magiblot/tvision to C# 14 / .NET 10
 | 1 | Core Primitives | ✅ Complete | 100% |
 | 2 | Event System | ✅ Complete | 100% |
 | 3 | Platform Layer | ✅ Complete | 100% (Windows) |
-| 4 | View Hierarchy | ✅ Working | 85% |
-| 5 | Application Framework | ✅ Working | 80% |
-| 6 | Dialog Controls | ✅ Core Complete | 90% |
+| 4 | View Hierarchy | ✅ Working | 95% |
+| 5 | Application Framework | ✅ Working | 85% |
+| 6 | Dialog Controls | ✅ Complete | 100% |
 | 7 | Menu System | ✅ Complete | 100% |
 | 8 | Editor Module | ❌ Not Started | 0% |
 
@@ -88,7 +88,7 @@ Windows Console API fully implemented. Cross-platform support deferred.
 
 ---
 
-## Phase 4: View Hierarchy ✅ Working (85%)
+## Phase 4: View Hierarchy ✅ Working (95%)
 
 Core view system functional. Some advanced features stubbed.
 
@@ -98,9 +98,9 @@ Core view system functional. Some advanced features stubbed.
 | TView | Views/TView.cs | 🟡 | Draw, WriteBuf/Char/Str, state management | CalcBounds (grow modes), expose check |
 | TGroup | Views/TGroup.cs | ✅ | Circular linked list, Insert/Delete, event routing | — |
 | TFrame | Views/TFrame.cs | 🟡 | Full frame drawing, title, icons | Mouse drag/resize |
-| TScrollBar | Views/TScrollBar.cs | 🟡 | Basic structure | Draw, click handling, dragging |
+| TScrollBar | Views/TScrollBar.cs | ✅ | Full drawing, mouse handling, keyboard, scrollStep | — |
 | TScroller | Views/TScroller.cs | 🟡 | Basic structure | Scrolling logic |
-| TListViewer | Views/TListViewer.cs | 🟡 | Basic structure | Drawing, selection, scrolling |
+| TListViewer | Views/TListViewer.cs | ✅ | Full drawing, selection, keyboard/mouse, scrollbar integration | — |
 | TBackground | Views/TBackground.cs | ✅ | Background pattern | — |
 
 **TFrame Drawing:** ✅ Complete
@@ -126,9 +126,9 @@ Application skeleton fully functional. Window management partially implemented.
 
 ---
 
-## Phase 6: Dialog Controls ✅ Core Complete (90%)
+## Phase 6: Dialog Controls ✅ Complete (100%)
 
-Core dialog controls fully functional with upstream parity.
+All dialog controls fully functional with upstream parity.
 
 | Class | File | Completion | Working | Missing |
 |-------|------|------------|---------|---------|
@@ -139,8 +139,11 @@ Core dialog controls fully functional with upstream parity.
 | TCluster | Dialogs/TCluster.cs | ✅ 100% | DrawBox/DrawMultiBox, keyboard/mouse, Column/Row/FindSel | — |
 | TCheckBoxes | Dialogs/TCheckBoxes.cs | ✅ 100% | Draw, Mark, Press toggle logic | — |
 | TRadioButtons | Dialogs/TRadioButtons.cs | ✅ 100% | Draw, Mark, Press selection logic | — |
-| TListBox | Dialogs/TListBox.cs | 40% | GetText, NewList, FocusItem | Full functionality |
-| THistory | Dialogs/THistory.cs | 10% | Basic structure | ShowHistory, integration |
+| TListBox | Dialogs/TListBox.cs | ✅ 100% | GetText, NewList, FocusItem, scrollbar integration | — |
+| THistory | Dialogs/THistory.cs | ✅ 100% | Draw, dropdown, history storage, input line integration | — |
+| THistoryViewer | Dialogs/THistoryViewer.cs | ✅ 100% | History item display, keyboard/mouse selection | — |
+| THistoryWindow | Dialogs/THistoryWindow.cs | ✅ 100% | Modal popup window for history dropdown | — |
+| THistoryList | Dialogs/THistoryList.cs | ✅ 100% | Static history storage (historyAdd, historyStr, historyCount) | — |
 | TSItem | Dialogs/TSItem.cs | ✅ | String item linked list | — |
 
 ---
@@ -255,13 +258,13 @@ The editor module is a significant undertaking (~207 C++ source files in upstrea
 TurboVision/
 ├── Core/           14 files  ✅ Complete
 ├── Platform/        8 files  ✅ Complete (Windows) + TTimerQueue, TClipboard
-├── Views/           8 files  🟡 85% complete
-├── Dialogs/         9 files  ✅ 90% complete (core controls done)
+├── Views/           8 files  ✅ 95% complete
+├── Dialogs/        13 files  ✅ 100% complete
 ├── Menus/          10 files  ✅ Complete
-├── Application/     5 files  🟡 80% complete
+├── Application/     5 files  🟡 85% complete
 └── Editor/          0 files  ❌ Not started
 
-Total: 54 C# source files
+Total: 58 C# source files
 ```
 
 **Upstream Reference:**
@@ -273,25 +276,19 @@ Total: 54 C# source files
 
 ## Prioritized Next Steps
 
-### Priority 1: Core Dialog Controls
-1. **TLabel** — FocusLink, hotkey handling (Alt+letter), showMarkers support
-2. **TStaticText** — Multi-line text wrapping, centering (char 3), gfFixed
-3. **TButton** — Timer-based press animation, cmTimerExpired handling
-4. **TInputLine** — Clipboard support (cmCut/cmCopy/cmPaste)
-5. **TCluster/TCheckBoxes/TRadioButtons** — All functionality
+### Priority 1: Core Dialog Controls ✅ COMPLETE
+All core dialog controls (TLabel, TStaticText, TButton, TInputLine, TCluster, TCheckBoxes, TRadioButtons, TListBox, THistory) are now fully implemented with upstream parity.
 
 ### Priority 2: View Interaction
-4. **TFrame mouse handling** — Drag to move/resize windows
-5. **TScrollBar/TScroller** — Drawing, click handling, scrolling
-6. **TListViewer/TListBox** — Drawing, selection, keyboard navigation
+1. **TFrame mouse handling** — Drag to move/resize windows
+2. **TScroller** — Scrolling logic integration
 
 ### Priority 3: Application Framework
-7. **TDeskTop.Cascade/Tile** — Window layout algorithms
-8. **TWindow resize handling** — CalcBounds with grow modes
+3. **TDeskTop.Cascade/Tile** — Window layout algorithms
+4. **TWindow resize handling** — CalcBounds with grow modes
 
 ### Priority 4: Standard Dialogs
-9. **messageBox()** — Alert/confirmation dialogs
-10. **THistory** — Input history with dropdown
+5. **messageBox()** — Alert/confirmation dialogs
 
 ### Priority 5: Editor Module
 11. **TEditor** — Core text editing engine
@@ -310,28 +307,3 @@ Total: 54 C# source files
 ### Priority 8: Cross-Platform
 19. Linux driver (ncurses-based)
 20. macOS support
-
----
-
-## Recent Changes
-
-### Latest Commits
-- ✅ TLabel — FocusLink method, hotkey handling (Alt+letter), proper Draw colors, showMarkers
-- ✅ TStaticText — Multi-line text wrapping, centering (char code 3), gfFixed grow mode
-- ✅ TButton — Timer-based press animation via cmTimerExpired broadcast
-- ✅ TInputLine — Clipboard support (cmCut, cmCopy, cmPaste commands)
-- ✅ TTimerQueue — New timer system for timed events (setTimer/killTimer)
-- ✅ TClipboard — Internal clipboard for text operations
-- ✅ TCluster/TCheckBoxes/TRadioButtons — DrawBox, keyboard/mouse handling, toggle logic
-- ✅ TStringUtils — HotKey, CstrLen, GetAltCode, CtrlToArrow helpers
-- ✅ TDrawBuffer.MoveBuf() — Buffer copying for frame rendering
-- ✅ TMenuBox sizing — Proper width/height calculation
-
-### Working Examples
-- `Examples/Hello/` — Full menu and dialog demo ✅
-
-### Blocked Examples (Upstream)
-- `tvdemo` — Needs TFileDialog, TListBox
-- `tvforms` — Needs TInputLine, validators
-- `tvedit` — Needs TEditor
-- `fileview` — Needs TFileDialog, TListViewer
