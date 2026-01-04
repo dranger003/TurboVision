@@ -1,4 +1,5 @@
 using TurboVision.Core;
+using TurboVision.Platform;
 using TurboVision.Views;
 
 namespace TurboVision.Dialogs;
@@ -13,10 +14,21 @@ public class TButton : TView
         0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0E, 0x0E, 0x0F
     ];
 
+    // Shadow characters for button rendering
+    private const char ShadowTopRight = '\u2584'; // ▄ or use space
+    private const char ShadowRight = '\u2588';    // █ or use space
+    private const char ShadowBottom = '\u2580';   // ▀ or use space
+
+    // Internal command constants
+    private const ushort cmGrabDefault = 61;
+    private const ushort cmReleaseDefault = 62;
+    private const int AnimationDurationMs = 100;
+
     public string? Title { get; set; }
     protected ushort Command { get; set; }
     protected byte Flags { get; set; }
     protected bool AmDefault { get; set; }
+    private TTimerId _animationTimer;
 
     public TButton(TRect bounds, string? title, ushort command, ushort flags) : base(bounds)
     {
@@ -42,48 +54,131 @@ public class TButton : TView
     public void DrawState(bool down)
     {
         var b = new TDrawBuffer();
-        byte colorIndex;
+        TAttrPair cButton;
+        TColorAttr cShadow;
 
         if (GetState(StateFlags.sfDisabled))
         {
-            colorIndex = 4;
-        }
-        else if (GetState(StateFlags.sfActive))
-        {
-            if (GetState(StateFlags.sfSelected))
-            {
-                colorIndex = 3;
-            }
-            else if (AmDefault)
-            {
-                colorIndex = 2;
-            }
-            else
-            {
-                colorIndex = 1;
-            }
+            cButton = GetColor(0x0404);
         }
         else
         {
-            colorIndex = 1;
+            cButton = GetColor(0x0501);
+            if (GetState(StateFlags.sfActive))
+            {
+                if (GetState(StateFlags.sfSelected))
+                {
+                    cButton = GetColor(0x0703);
+                }
+                else if (AmDefault)
+                {
+                    cButton = GetColor(0x0602);
+                }
+            }
         }
 
-        var color = GetColor((ushort)((colorIndex << 8) | colorIndex));
-        var scOff = GetColor(0x0504);
+        cShadow = GetColor(8).Normal;
 
-        b.MoveChar(0, ' ', color.Normal, Size.X);
+        int s = Size.X - 1;
+        int titleY = Size.Y / 2 - 1;
 
-        if (!string.IsNullOrEmpty(Title))
+        // Draw each row of the button
+        for (int y = 0; y <= Size.Y - 2; y++)
         {
-            int offset = (Size.X - Title.Length - 4) / 2;
-            if (offset < 0) offset = 0;
+            b.MoveChar(0, ' ', cButton.Normal, Size.X);
+            b.PutAttribute(0, cShadow);
 
-            b.MoveStr(offset, "[ ", color.Normal);
-            b.MoveCStr(offset + 2, Title, new TAttrPair(color.Normal, scOff.Normal));
-            b.MoveStr(offset + 2 + Title.Length, " ]", color.Normal);
+            if (down)
+            {
+                // When pressed, shift button right
+                b.PutAttribute(1, cShadow);
+                if (y == titleY && Title != null)
+                {
+                    DrawTitle(b, s, 2, cButton, down);
+                }
+            }
+            else
+            {
+                // Normal state - shadow on right side
+                b.PutAttribute(s, cShadow);
+                if (!ShowMarkers)
+                {
+                    if (y == 0)
+                    {
+                        b.PutChar(s, ShadowTopRight);
+                    }
+                    else
+                    {
+                        b.PutChar(s, ShadowRight);
+                    }
+                }
+                if (y == titleY && Title != null)
+                {
+                    DrawTitle(b, s, 1, cButton, down);
+                }
+
+                if (ShowMarkers && !down)
+                {
+                    b.PutChar(1, '[');
+                    b.PutChar(s - 1, ']');
+                }
+            }
+
+            WriteLine(0, y, Size.X, 1, b);
         }
 
-        WriteLine(0, 0, Size.X, Size.Y, b);
+        // Draw bottom shadow row
+        b.MoveChar(0, ' ', cShadow, 2);
+        b.MoveChar(2, ShowMarkers ? ' ' : ShadowBottom, cShadow, s - 1);
+        WriteLine(0, Size.Y - 1, Size.X, 1, b);
+    }
+
+    private void DrawTitle(TDrawBuffer b, int s, int indent, TAttrPair cButton, bool down)
+    {
+        if (Title == null)
+        {
+            return;
+        }
+
+        int l;
+        if ((Flags & CommandConstants.bfLeftJust) != 0)
+        {
+            l = 1;
+        }
+        else
+        {
+            l = (s - TStringUtils.CstrLen(Title) - 1) / 2;
+            if (l < 1)
+            {
+                l = 1;
+            }
+        }
+
+        b.MoveCStr(indent + l, Title, cButton);
+
+        // Draw selection markers if ShowMarkers is enabled and not pressed
+        if (ShowMarkers && !down)
+        {
+            int scOff;
+            if (GetState(StateFlags.sfSelected))
+            {
+                scOff = 0;
+            }
+            else if (AmDefault)
+            {
+                scOff = 2;
+            }
+            else
+            {
+                scOff = 4;
+            }
+
+            // Special marker characters at position 0 and s
+            char leftMarker = scOff == 0 ? '\u00BB' : (scOff == 2 ? '\u00AB' : ' '); // » «
+            char rightMarker = scOff == 0 ? '\u00AB' : (scOff == 2 ? '\u00BB' : ' ');
+            b.PutChar(0, leftMarker);
+            b.PutChar(s, rightMarker);
+        }
     }
 
     public override TPalette? GetPalette()
@@ -93,34 +188,112 @@ public class TButton : TView
 
     public override void HandleEvent(ref TEvent ev)
     {
+        var clickRect = GetExtent();
+        clickRect = new TRect(clickRect.A.X + 1, clickRect.A.Y, clickRect.B.X - 1, clickRect.B.Y - 1);
+
         if (ev.What == EventConstants.evMouseDown)
         {
-            if (!GetState(StateFlags.sfDisabled))
+            var mouse = MakeLocal(ev.Mouse.Where);
+            if (!clickRect.Contains(mouse))
             {
-                PressButton(ref ev);
-            }
-            ClearEvent(ref ev);
-            return;
-        }
-
-        base.HandleEvent(ref ev);
-
-        if (ev.What == EventConstants.evKeyDown)
-        {
-            if (ev.KeyDown.KeyCode == KeyConstants.kbEnter && AmDefault)
-            {
-                Press();
                 ClearEvent(ref ev);
             }
-            // TODO: Handle shortcut key
         }
-        else if (ev.What == EventConstants.evBroadcast)
+
+        if ((Flags & CommandConstants.bfGrabFocus) != 0)
         {
-            if (ev.Message.Command == CommandConstants.cmCommandSetChanged)
-            {
-                SetState(StateFlags.sfDisabled, !CommandEnabled(Command));
-                DrawView();
-            }
+            base.HandleEvent(ref ev);
+        }
+
+        char c = Title != null ? TStringUtils.HotKey(Title) : '\0';
+
+        switch (ev.What)
+        {
+            case var _ when ev.What == EventConstants.evMouseDown:
+                if (!GetState(StateFlags.sfDisabled))
+                {
+                    clickRect = new TRect(clickRect.A.X, clickRect.A.Y, clickRect.B.X + 1, clickRect.B.Y);
+                    bool down = false;
+
+                    do
+                    {
+                        var mouse = MakeLocal(ev.Mouse.Where);
+                        if (down != clickRect.Contains(mouse))
+                        {
+                            down = !down;
+                            DrawState(down);
+                        }
+                    } while (MouseEvent(ref ev, EventConstants.evMouseMove));
+
+                    if (down)
+                    {
+                        Press();
+                        DrawState(false);
+                    }
+                }
+                ClearEvent(ref ev);
+                break;
+
+            case var _ when ev.What == EventConstants.evKeyDown:
+                // Check for Alt+hotkey, space when focused, or direct letter match
+                if (ev.KeyDown.KeyCode != 0 &&
+                    (ev.KeyDown.KeyCode == TStringUtils.GetAltCode(c) ||
+                     (Owner?.Phase == PhaseType.phPostProcess &&
+                      c != '\0' &&
+                      c == char.ToUpperInvariant((char)ev.KeyDown.CharCode)) ||
+                     (GetState(StateFlags.sfFocused) && ev.KeyDown.CharCode == ' ')))
+                {
+                    // Start animation with timer
+                    DrawState(true);
+                    if (_animationTimer == default)
+                    {
+                        _animationTimer = SetTimer(AnimationDurationMs);
+                    }
+                    ClearEvent(ref ev);
+                }
+                break;
+
+            case var _ when ev.What == EventConstants.evBroadcast:
+                switch (ev.Message.Command)
+                {
+                    case CommandConstants.cmDefault:
+                        if (AmDefault && !GetState(StateFlags.sfDisabled))
+                        {
+                            // Start animation with timer
+                            DrawState(true);
+                            if (_animationTimer == default)
+                            {
+                                _animationTimer = SetTimer(AnimationDurationMs);
+                            }
+                            ClearEvent(ref ev);
+                        }
+                        break;
+
+                    case cmGrabDefault:
+                    case cmReleaseDefault:
+                        if ((Flags & CommandConstants.bfDefault) != 0)
+                        {
+                            AmDefault = ev.Message.Command == cmReleaseDefault;
+                            DrawView();
+                        }
+                        break;
+
+                    case CommandConstants.cmCommandSetChanged:
+                        SetState(StateFlags.sfDisabled, !CommandEnabled(Command));
+                        DrawView();
+                        break;
+
+                    case CommandConstants.cmTimerExpired:
+                        if (_animationTimer != default && ev.Message.InfoPtr == _animationTimer)
+                        {
+                            _animationTimer = default;
+                            DrawState(false);
+                            Press();
+                            ClearEvent(ref ev);
+                        }
+                        break;
+                }
+                break;
         }
     }
 
@@ -128,21 +301,12 @@ public class TButton : TView
     {
         if ((Flags & CommandConstants.bfDefault) == 0)
         {
+            // Broadcast to other buttons to grab/release default status
+            Message(Owner, EventConstants.evBroadcast,
+                enable ? cmGrabDefault : cmReleaseDefault, 0);
             AmDefault = enable;
             DrawView();
         }
-    }
-
-    public virtual void Press()
-    {
-        TEvent ev = TEvent.Command(Command);
-
-        if ((Flags & CommandConstants.bfBroadcast) != 0)
-        {
-            ev.What = EventConstants.evBroadcast;
-        }
-
-        PutEvent(ev);
     }
 
     public override void SetState(ushort aState, bool enable)
@@ -160,14 +324,53 @@ public class TButton : TView
         }
     }
 
-    private void PressButton(ref TEvent ev)
+    public virtual void Press()
     {
-        // TODO: Implement button press animation
-        Press();
+        Message(Owner, EventConstants.evBroadcast, CommandConstants.cmRecordHistory, 0);
+
+        if ((Flags & CommandConstants.bfBroadcast) != 0)
+        {
+            Message(Owner, EventConstants.evBroadcast, Command, 0);
+        }
+        else
+        {
+            TEvent ev = TEvent.Command(Command);
+            PutEvent(ev);
+        }
     }
 
     private TRect GetActiveRect()
     {
         return GetExtent();
+    }
+
+    // Helper to send a message to a target
+    private static nint Message(TGroup? target, ushort what, ushort command, nint infoPtr)
+    {
+        if (target != null)
+        {
+            TEvent ev = new()
+            {
+                What = what
+            };
+            ev.Message.Command = command;
+            ev.Message.InfoPtr = infoPtr;
+            target.HandleEvent(ref ev);
+            if (ev.What == EventConstants.evNothing)
+            {
+                return ev.Message.InfoPtr;
+            }
+        }
+        return 0;
+    }
+
+    public override void ShutDown()
+    {
+        if (_animationTimer != default)
+        {
+            KillTimer(_animationTimer);
+            _animationTimer = default;
+        }
+        base.ShutDown();
     }
 }
