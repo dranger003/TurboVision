@@ -45,6 +45,24 @@ public class TDrawBuffer
     }
 
     /// <summary>
+    /// Copies a sequence of characters from a source string to the buffer.
+    /// Each character gets the specified attribute.
+    /// </summary>
+    public void MoveBuf(int indent, ReadOnlySpan<char> source, TColorAttr attr, int count)
+    {
+        if (indent >= _data.Length)
+        {
+            return;
+        }
+
+        int end = Math.Min(count, Math.Min(source.Length, _data.Length - indent));
+        for (int i = 0; i < end; i++)
+        {
+            _data[indent + i].SetCell(source[i], attr);
+        }
+    }
+
+    /// <summary>
     /// Fills a portion of the buffer with a character and attribute.
     /// </summary>
     public void MoveChar(int indent, char c, TColorAttr attr, int count)

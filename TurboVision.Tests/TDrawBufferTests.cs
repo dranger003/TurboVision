@@ -97,6 +97,96 @@ public class TDrawBufferTests
 
     #endregion
 
+    #region MoveBuf Tests
+
+    [TestMethod]
+    public void MoveBuf_ShouldCopySequenceOfChars()
+    {
+        var buffer = new TDrawBuffer(20);
+        var attr = new TColorAttr(0x07, 0x01);
+        string source = "┌─┐";
+
+        buffer.MoveBuf(5, source, attr, 3);
+
+        Assert.AreEqual('┌', buffer[5].Char);
+        Assert.AreEqual('─', buffer[6].Char);
+        Assert.AreEqual('┐', buffer[7].Char);
+
+        for (int i = 5; i < 8; i++)
+        {
+            Assert.AreEqual(attr, buffer[i].Attr);
+        }
+
+        // Surrounding cells should be unchanged
+        Assert.AreEqual(' ', buffer[4].Char);
+        Assert.AreEqual(' ', buffer[8].Char);
+    }
+
+    [TestMethod]
+    public void MoveBuf_ShouldClipAtBufferEnd()
+    {
+        var buffer = new TDrawBuffer(10);
+        var attr = new TColorAttr(0x07, 0x01);
+        string source = "ABCDEF";
+
+        // Start at 7, try to write 6 chars (would go to 13, but buffer is 10)
+        buffer.MoveBuf(7, source, attr, 6);
+
+        Assert.AreEqual('A', buffer[7].Char);
+        Assert.AreEqual('B', buffer[8].Char);
+        Assert.AreEqual('C', buffer[9].Char);
+    }
+
+    [TestMethod]
+    public void MoveBuf_ShouldClipAtSourceLength()
+    {
+        var buffer = new TDrawBuffer(20);
+        var attr = new TColorAttr(0x07, 0x01);
+        string source = "AB";
+
+        // Request 5 chars but source only has 2
+        buffer.MoveBuf(0, source, attr, 5);
+
+        Assert.AreEqual('A', buffer[0].Char);
+        Assert.AreEqual('B', buffer[1].Char);
+        Assert.AreEqual(' ', buffer[2].Char, "Should not write past source length");
+    }
+
+    [TestMethod]
+    public void MoveBuf_ShouldDoNothingIfIndentPastBuffer()
+    {
+        var buffer = new TDrawBuffer(10);
+        var attr = new TColorAttr(0x07, 0x01);
+
+        buffer.MoveBuf(20, "ABC", attr, 3);
+
+        // All cells should still be spaces
+        for (int i = 0; i < buffer.Length; i++)
+        {
+            Assert.AreEqual(' ', buffer[i].Char);
+        }
+    }
+
+    [TestMethod]
+    public void MoveBuf_ShouldWorkWithFrameChars()
+    {
+        var buffer = new TDrawBuffer(20);
+        var attr = new TColorAttr(0x70, 0x00);
+        string frameChars = " ┌─┐  └─┘  │ │  ├─┤ ";
+
+        // Top frame: indices 0-4 give " ┌" for left edge
+        buffer.MoveBuf(0, frameChars.AsSpan(0), attr, 2);
+        Assert.AreEqual(' ', buffer[0].Char);
+        Assert.AreEqual('┌', buffer[1].Char);
+
+        // Top frame: indices 3-4 give "┐ " for right edge
+        buffer.MoveBuf(18, frameChars.AsSpan(3), attr, 2);
+        Assert.AreEqual('┐', buffer[18].Char);
+        Assert.AreEqual(' ', buffer[19].Char);
+    }
+
+    #endregion
+
     #region MoveStr Tests
 
     [TestMethod]
