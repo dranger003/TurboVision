@@ -86,19 +86,19 @@ public class TApplication : TProgram
         {
             switch (ev.Message.Command)
             {
-                case CommandConstants.cmTile:
-                    ClearEvent(ref ev);
-                    Tile();
-                    break;
-                case CommandConstants.cmCascade:
-                    ClearEvent(ref ev);
-                    Cascade();
-                    break;
                 case CommandConstants.cmDosShell:
-                    ClearEvent(ref ev);
                     DosShell();
                     break;
+                case CommandConstants.cmCascade:
+                    Cascade();
+                    break;
+                case CommandConstants.cmTile:
+                    Tile();
+                    break;
+                default:
+                    return;
             }
+            ClearEvent(ref ev);
         }
     }
 
