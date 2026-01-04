@@ -4,6 +4,7 @@ namespace TurboVision.Dialogs;
 
 /// <summary>
 /// Radio button group (mutually exclusive selection).
+/// Only one radio button can be selected at a time.
 /// </summary>
 public class TRadioButtons : TCluster
 {
@@ -15,7 +16,7 @@ public class TRadioButtons : TCluster
 
     public override void Draw()
     {
-        DrawBox(Button, '●');
+        DrawBox(Button, '\u2022'); // bullet character
     }
 
     public override bool Mark(int item)
@@ -31,7 +32,6 @@ public class TRadioButtons : TCluster
     public override void Press(int item)
     {
         Value = (uint)item;
-        DrawView();
     }
 
     public override void SetData(ReadOnlySpan<byte> rec)

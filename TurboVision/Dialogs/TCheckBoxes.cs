@@ -4,6 +4,7 @@ namespace TurboVision.Dialogs;
 
 /// <summary>
 /// Checkbox group (multiple selection).
+/// Each checkbox can be toggled independently.
 /// </summary>
 public class TCheckBoxes : TCluster
 {
@@ -15,7 +16,7 @@ public class TCheckBoxes : TCluster
 
     public override void Draw()
     {
-        DrawBox(Button, '×');
+        DrawBox(Button, 'X');
     }
 
     public override bool Mark(int item)
@@ -26,6 +27,5 @@ public class TCheckBoxes : TCluster
     public override void Press(int item)
     {
         Value ^= (1u << item);
-        DrawView();
     }
 }
