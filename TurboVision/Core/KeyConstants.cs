@@ -213,6 +213,42 @@ public static class KeyConstants
     public const ushort kbAltBack = 0x0E00;
     public const ushort kbCtrlDel = 0x9300;
 
+    // Shift+key combinations
+    public const ushort kbShiftIns = 0x0500;
+    public const ushort kbShiftDel = 0x0700;
+    public const ushort kbCtrlIns = 0x0400;
+
+    // Control+letter combinations (character codes 0x01-0x1A)
+    public const ushort kbCtrlA = 0x1E01;
+    public const ushort kbCtrlB = 0x3002;
+    public const ushort kbCtrlC = 0x2E03;
+    public const ushort kbCtrlD = 0x2004;
+    public const ushort kbCtrlE = 0x1205;
+    public const ushort kbCtrlF = 0x2106;
+    public const ushort kbCtrlG = 0x2207;
+    public const ushort kbCtrlH = 0x2308;
+    public const ushort kbCtrlI = 0x1709;
+    public const ushort kbCtrlJ = 0x240A;
+    public const ushort kbCtrlK = 0x250B;
+    public const ushort kbCtrlL = 0x260C;
+    public const ushort kbCtrlM = 0x320D;
+    public const ushort kbCtrlN = 0x310E;
+    public const ushort kbCtrlO = 0x180F;
+    public const ushort kbCtrlP = 0x1910;
+    public const ushort kbCtrlQ = 0x1011;
+    public const ushort kbCtrlR = 0x1312;
+    public const ushort kbCtrlS = 0x1F13;
+    public const ushort kbCtrlT = 0x1414;
+    public const ushort kbCtrlU = 0x1615;
+    public const ushort kbCtrlV = 0x2F16;
+    public const ushort kbCtrlW = 0x1117;
+    public const ushort kbCtrlX = 0x2D18;
+    public const ushort kbCtrlY = 0x1519;
+    public const ushort kbCtrlZ = 0x2C1A;
+
+    // Paste indicator flag (used in ControlKeyState)
+    public const ushort kbPaste = 0x8000;
+
     // Shift state flag (combined left/right shift)
     public const ushort kbShift = 0x0010;
     // Special keys
