@@ -539,28 +539,30 @@ public class TGroup : TView
         var saveCommands = new TCommandSet(CurCommandSet);
         var saveTopView = TopView();
 
+        // Clear ofSelectable and set sfModal BEFORE insert to prevent
+        // resetCurrent() from being triggered when the view becomes visible.
+        // This matches the upstream C++ order of operations.
+        p.Options &= unchecked((ushort)~OptionFlags.ofSelectable);
+        p.SetState(StateFlags.sfModal, true);
+        SetCurrent(p, SelectMode.enterSelect);
+
         // Only insert if view wasn't already owned (not already in hierarchy)
         if (saveOwner == null)
         {
             Insert(p);
         }
 
-        p.Options &= unchecked((ushort)~OptionFlags.ofSelectable);
-        p.SetState(StateFlags.sfModal, true);
-
-        SetCurrent(p, SelectMode.enterSelect);
-
         ushort result = p.Execute();
-
-        SetCurrent(saveCurrent, SelectMode.leaveSelect);
-        p.SetState(StateFlags.sfModal, false);
-        p.Options = saveOptions;
 
         // Only remove if view wasn't already owned
         if (saveOwner == null)
         {
             Remove(p);
         }
+
+        SetCurrent(saveCurrent, SelectMode.leaveSelect);
+        p.SetState(StateFlags.sfModal, false);
+        p.Options = saveOptions;
 
         SetCommands(saveCommands);
 
