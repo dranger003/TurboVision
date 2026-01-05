@@ -538,33 +538,33 @@ The upstream C++ streaming system uses pointer-based object graphs and a binary 
 1. Implement `TMultiCheckBoxes` - Variable-width multi-checkbox
 2. Implement `TParamText` - Formatted parameterized text
 
-### Priority 3: File Operations (PARTIAL)
+### Priority 3: File Operations (PARTIAL - missing serialization)
 1. Implement `TFileDialog` and supporting classes
 2. Implement `TChDirDialog` and supporting classes
 3. Implement file path utilities
 
-### Priority 4: Editor Module (PARTIAL)
+### Priority 4: Editor Module (PARTIAL - missing serialization and complete `TText` integration)
 1. Implement `TIndicator`
 2. Implement `TEditor` with gap buffer
 3. Implement `TMemo` and `TFileEditor`
 4. Implement `TEditWindow`
 
-### Priority 5: Collections Framework
+### Priority 5: Collections Framework (PARTIAL - missing serialization)
 1. Implement `TCollection`/`TNSCollection`
 2. Implement `TSortedCollection`
 3. Implement `TStringCollection`
 4. Implement resource management classes
 
-### Priority 6: Platform Completeness
+### Priority 6: Serialization
+1. Design C# serialization approach
+2. Implement `TStreamable` pattern
+3. Add serialization to all view classes
+
+### Priority 7: Platform Completeness
 1. Add screen capability detection
 2. Add damage tracking to display
 3. Implement system clipboard integration
 4. Add UTF-16 surrogate handling
-
-### Priority 7: Serialization
-1. Design C# serialization approach
-2. Implement `TStreamable` pattern
-3. Add serialization to all view classes
 
 ### Priority 8: Advanced Features
 1. Implement `TOutline` and `TOutlineViewer`
