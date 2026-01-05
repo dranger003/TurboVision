@@ -538,12 +538,12 @@ The upstream C++ streaming system uses pointer-based object graphs and a binary 
 1. Implement `TMultiCheckBoxes` - Variable-width multi-checkbox
 2. Implement `TParamText` - Formatted parameterized text
 
-### Priority 3: File Operations
+### Priority 3: File Operations (PARTIAL)
 1. Implement `TFileDialog` and supporting classes
 2. Implement `TChDirDialog` and supporting classes
 3. Implement file path utilities
 
-### Priority 4: Editor Module
+### Priority 4: Editor Module (PARTIAL)
 1. Implement `TIndicator`
 2. Implement `TEditor` with gap buffer
 3. Implement `TMemo` and `TFileEditor`
