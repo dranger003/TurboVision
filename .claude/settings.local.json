@@ -10,7 +10,8 @@
             "Bash(cat:*)",
             "Bash(git:*)",
             "Bash(find:*)",
-            "Bash(grep:*)"
+            "Bash(grep:*)",
+            "Skill(commit)"
         ]
     },
     "outputStyle": "default"
