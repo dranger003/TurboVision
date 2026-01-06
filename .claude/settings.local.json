@@ -1,19 +1,22 @@
 {
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  },
-  "permissions": {
-    "allow": [
-      "Bash(dotnet build:*)",
-      "Bash(dotnet test:*)",
-      "Bash(dotnet clean:*)",
-      "Bash(cat:*)",
-      "Bash(git:*)",
-      "Bash(find:*)",
-      "Bash(grep:*)",
-      "Skill(commit)"
-    ]
-  },
-  "outputStyle": "default"
+    "attribution": {
+        "commit": "",
+        "pr": ""
+    },
+    "permissions": {
+        "allow": [
+            "Bash(dotnet build:*)",
+            "Bash(dotnet test:*)",
+            "Bash(dotnet clean:*)",
+            "Bash(ls:*)",
+            "Bash(wc:*)",
+            "Bash(cat:*)",
+            "Bash(git:*)",
+            "Bash(find:*)",
+            "Bash(grep:*)",
+            "Bash(done)",
+            "Skill(commit)"
+        ]
+    },
+    "outputStyle": "default"
 }
