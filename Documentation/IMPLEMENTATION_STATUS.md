@@ -27,7 +27,7 @@ This document tracks the comprehensive porting progress of magiblot/tvision to C
 | **Outline Views** | **Not Started** | **0%** |
 | **Color Selector** | **Not Started** | **0%** |
 | **Help System** | **Not Started** | **0%** |
-| **Streaming/Serialization** | **Not Started** | **0%** |
+| **Streaming/Serialization** | **In Progress** | **70%** |
 
 ---
 
@@ -440,40 +440,44 @@ Menu system works with some gaps.
 
 ---
 
-### Streaming/Serialization System (0%)
+### Streaming/Serialization System (70%)
 
-**Required upstream files:** tobjstrm.cpp, all s*.cpp (46 files), all nm*.cpp (42 files)
+**Design Decision:** JSON-native approach using System.Text.Json with `[JsonPolymorphic]`/`[JsonDerivedType]` attributes for type discrimination. This provides human-readable format while maintaining type safety.
 
-**Classes to implement:**
-| Class | Description |
-|-------|-------------|
-| TStreamable | Base serialization interface |
-| TStreamableClass | Runtime type registration |
-| TStreamableTypes | Type registry database |
-| TPWrittenObjects | Output stream object tracking |
-| TPReadObjects | Input stream object tracking |
-| pstream | Base stream with type management |
-| ipstream | Input stream reader |
-| opstream | Output stream writer |
-| iopstream | Bidirectional stream |
-| fpbase | File buffer base |
-| ifpstream | File input stream |
-| ofpstream | File output stream |
-| fpstream | Bidirectional file stream |
+**Implemented:**
+| Component | Status | Description |
+|-----------|--------|-------------|
+| IStreamable | Complete | Base serialization interface |
+| IStreamSerializer | Complete | Serializer abstraction |
+| IStreamReader/Writer | Complete | Stream reader/writer interfaces |
+| StreamableTypeRegistry | Complete | Runtime type registration (mirrors TStreamableTypes) |
+| JsonStreamSerializer | Complete | JSON serializer implementation |
+| ViewHierarchyRebuilder | Complete | Reconstructs Owner/Next/Last pointers after deserialization |
+| TView attributes | Complete | `[JsonPolymorphic]`, `[JsonDerivedType]` for 30+ view types |
+| State masking | Complete | Runtime flags (sfActive, sfSelected, etc.) excluded from serialization |
+| Linked view resolution | Complete | TLabel.Link and THistory.Link restored via LinkIndex |
+| Custom converters | Complete | TPoint, TRect, TKey, TMenu, TMenuItem, TStatusItem, TStatusDef |
 
-**Design Decision Required:**
-The upstream C++ streaming system uses pointer-based object graphs and a binary format specific to C++. Options for C#:
-1. Port binary format exactly (for file compatibility)
-2. Use .NET serialization (BinaryFormatter, JSON, etc.)
-3. Design new format optimized for C#
+**View Types with JSON Serialization Support:**
+- Base: TView, TGroup, TFrame, TWindow, TDialog
+- Controls: TButton, TInputLine, TLabel, TStaticText, TParamText
+- Clusters: TCheckBoxes, TRadioButtons, TMultiCheckBoxes
+- Lists: TListBox, TSortedListBox, TListViewer
+- Scrolling: TScrollBar, TScroller
+- History: THistory, THistoryViewer, THistoryWindow
+- File dialogs: TFileInputLine, TFileInfoPane, TFileList, TDirListBox, TFileDialog, TChDirDialog
+- Menus: TMenuView, TMenuBar, TMenuBox, TMenuPopup, TStatusLine
+- Editor: TEditor, TMemo, TFileEditor, TIndicator, TEditWindow
+- Misc: TBackground
 
-**Impact of Missing Streaming:**
-- No save/load capability for UI configurations
-- No persistence of application state
-- No resource file support
-- All view classes lack `Read()`/`Write()` methods
+**Not Implemented:**
+| Feature | Notes |
+|---------|-------|
+| Binary format | Upstream compatibility not required |
+| Validator serialization | Validators are code, not data - intentional |
+| TCollection serialization | TCollection<T> converter for future use |
 
-**Estimated effort:** ~2000+ lines of C# code (plus adding streaming to all existing classes)
+**Estimated remaining effort:** ~500 lines (TCollection converter, documentation)
 
 ---
 
@@ -503,8 +507,9 @@ The upstream C++ streaming system uses pointer-based object graphs and a binary 
 | TDrawBuffer | 27 | Pass |
 | TStatusLine | 5 | Pass |
 | TGroup/ExecView | 10 | Pass |
+| JSON Serialization | 21 | Pass |
 
-**Total: 88 tests (all passing)**
+**Total: 156 tests (all passing)**
 
 ---
 
@@ -555,10 +560,11 @@ The upstream C++ streaming system uses pointer-based object graphs and a binary 
 3. Implement `TStringCollection`
 4. Implement resource management classes
 
-### Priority 6: Serialization
-1. Design C# serialization approach
-2. Implement `TStreamable` pattern
-3. Add serialization to all view classes
+### Priority 6: Serialization (PARTIAL - 70%)
+1. Design C# serialization approach - JSON-native with System.Text.Json
+2. Implement `IStreamable` pattern - Complete with JsonStreamSerializer
+3. Add serialization to all view classes - 30+ view types supported
+4. Remaining: TCollection<T> converter, additional documentation
 
 ### Priority 7: Platform Completeness
 1. Add screen capability detection
@@ -616,5 +622,5 @@ The upstream C++ streaming system uses pointer-based object graphs and a binary 
 
 ---
 
-*Last updated: 2026-01-04*
+*Last updated: 2026-01-05*
 *Analysis based on comprehensive file-by-file comparison with upstream magiblot/tvision*
