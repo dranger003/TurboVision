@@ -1,6 +1,6 @@
 # Turbo Vision
 
-C# port of Turbo Vision 2.0 written entirely by Claude Code, a nostalgic practical experiment and learning exercise using CC.
+.NET 10 C# port of Turbo Vision 2.0 written entirely by Claude. A nostalgic practical experiment and learning exercise using CC.
 
 ## Acknowledgments
 
