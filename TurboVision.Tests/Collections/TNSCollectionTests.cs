@@ -205,7 +205,7 @@ public class TNSCollectionTests
         collection.Insert(new TestItem(3));
 
         Assert.AreEqual(3, collection.Count);
-        Assert.IsTrue(collection.Limit >= 3);
+        Assert.IsGreaterThanOrEqualTo(3, collection.Limit);
     }
 
     [TestMethod]

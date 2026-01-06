@@ -13,7 +13,7 @@ public class TStringListTests
         maker.Put(0, "Hello");
         maker.Put(1, "World");
 
-        Assert.IsTrue(maker.StringDataSize > 0);
+        Assert.IsGreaterThan(0, maker.StringDataSize);
         Assert.AreEqual(1, maker.IndexCount);
     }
 

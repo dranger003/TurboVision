@@ -87,10 +87,10 @@ public class TEventDispatchTests
 
         // Both parent and child should have received the event
         // Child receives during focused phase, parent receives after base.HandleEvent
-        Assert.AreEqual(1, child.ReceivedEvents.Count, "Child should receive the command");
+        Assert.HasCount(1, child.ReceivedEvents, "Child should receive the command");
         Assert.AreEqual(100, child.ReceivedEvents[0].Command, "Child should receive command 100");
 
-        Assert.AreEqual(1, parent.ReceivedEvents.Count, "Parent should receive the command");
+        Assert.HasCount(1, parent.ReceivedEvents, "Parent should receive the command");
         Assert.AreEqual(100, parent.ReceivedEvents[0].Command, "Parent should receive command 100");
 
         // Event should not be cleared (neither handler cleared it)
@@ -114,10 +114,10 @@ public class TEventDispatchTests
         parent.HandleEvent(ref ev);
 
         // Child should have received and cleared the event
-        Assert.AreEqual(1, child.ReceivedEvents.Count, "Child should receive the command");
+        Assert.HasCount(1, child.ReceivedEvents, "Child should receive the command");
 
         // Parent should NOT have received it (event was cleared)
-        Assert.AreEqual(0, parent.ReceivedEvents.Count, "Parent should NOT receive cleared command");
+        Assert.IsEmpty(parent.ReceivedEvents, "Parent should NOT receive cleared command");
 
         // Event should be cleared
         Assert.AreEqual(EventConstants.evNothing, ev.What, "Event should be cleared");
@@ -145,8 +145,8 @@ public class TEventDispatchTests
 
         // Only view2 (current) should receive the command during focused phase
         // view1 would only receive during preprocess/postprocess if it had those flags
-        Assert.AreEqual(0, view1.ReceivedEvents.Count, "Non-focused view should not receive command");
-        Assert.AreEqual(1, view2.ReceivedEvents.Count, "Focused view should receive command");
+        Assert.IsEmpty(view1.ReceivedEvents, "Non-focused view should not receive command");
+        Assert.HasCount(1, view2.ReceivedEvents, "Focused view should receive command");
     }
 
     /// <summary>
@@ -172,7 +172,7 @@ public class TEventDispatchTests
         parent.HandleEvent(ref ev);
 
         // Order should be: preprocess, then focused, then parent
-        Assert.AreEqual(3, order.Count, "All three should receive");
+        Assert.HasCount(3, order, "All three should receive");
         Assert.AreEqual("preprocess", order[0], "Preprocess should be first");
         Assert.AreEqual("focused", order[1], "Focused should be second");
         Assert.AreEqual("parent", order[2], "Parent should be last");
