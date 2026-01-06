@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 
 namespace TurboVision.Views;
@@ -11,10 +12,31 @@ public class TScroller : TView
 
     public TPoint Delta { get; set; }
     public TPoint Limit { get; protected set; }
+
+    /// <summary>
+    /// Reference to horizontal scroll bar. Not serialized - exists in SubViews.
+    /// </summary>
+    [JsonIgnore]
     public TScrollBar? HScrollBar { get; set; }
+
+    /// <summary>
+    /// Reference to vertical scroll bar. Not serialized - exists in SubViews.
+    /// </summary>
+    [JsonIgnore]
     public TScrollBar? VScrollBar { get; set; }
+
     protected byte DrawLock { get; set; }
     protected bool DrawFlag { get; set; }
+
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TScroller() : base()
+    {
+        Options |= OptionFlags.ofSelectable;
+        EventMask |= EventConstants.evBroadcast;
+    }
 
     public TScroller(TRect bounds, TScrollBar? hScrollBar, TScrollBar? vScrollBar) : base(bounds)
     {

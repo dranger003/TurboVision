@@ -58,6 +58,9 @@ namespace TurboVision.Views;
 [JsonDerivedType(typeof(TFileEditor), "TFileEditor")]
 [JsonDerivedType(typeof(TIndicator), "TIndicator")]
 [JsonDerivedType(typeof(TEditWindow), "TEditWindow")]
+// Outline types
+// TOutlineViewer is abstract - concrete types only
+[JsonDerivedType(typeof(TOutline), "TOutline")]
 public class TView : TObject, IStreamable
 {
     /// <summary>
