@@ -20,6 +20,14 @@ public class TRadioButtons : TCluster
 
     private const string Button = " ( ) ";
 
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TRadioButtons() : base()
+    {
+    }
+
     public TRadioButtons(TRect bounds, TSItem? strings) : base(bounds, strings)
     {
     }

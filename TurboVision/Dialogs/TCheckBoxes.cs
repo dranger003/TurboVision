@@ -20,6 +20,14 @@ public class TCheckBoxes : TCluster
 
     private const string Button = " [ ] ";
 
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TCheckBoxes() : base()
+    {
+    }
+
     public TCheckBoxes(TRect bounds, TSItem? strings) : base(bounds, strings)
     {
     }

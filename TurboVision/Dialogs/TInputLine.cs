@@ -58,6 +58,19 @@ public class TInputLine : TView
     [JsonIgnore]
     private int _oldSelEnd;
 
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TInputLine() : base()
+    {
+        MaxLen = 255;
+        MaxWidth = int.MaxValue;
+        MaxChars = int.MaxValue;
+        State |= StateFlags.sfCursorVis;
+        Options |= OptionFlags.ofSelectable | OptionFlags.ofFirstClick;
+    }
+
     public TInputLine(TRect bounds, int limit, ushort limitMode = ilMaxBytes)
         : this(bounds, limit, null, limitMode)
     {

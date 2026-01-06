@@ -23,6 +23,15 @@ public class TStaticText : TView
     [JsonPropertyName("text")]
     public string? Text { get; set; }
 
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TStaticText() : base()
+    {
+        GrowMode |= GrowFlags.gfFixed;
+    }
+
     public TStaticText(TRect bounds, string? text) : base(bounds)
     {
         Text = text;

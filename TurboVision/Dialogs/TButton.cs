@@ -48,6 +48,16 @@ public class TButton : TView
     [JsonIgnore]
     private TTimerId _animationTimer;
 
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TButton() : base()
+    {
+        Options |= OptionFlags.ofSelectable | OptionFlags.ofFirstClick | OptionFlags.ofPreProcess | OptionFlags.ofPostProcess;
+        EventMask |= EventConstants.evBroadcast;
+    }
+
     public TButton(TRect bounds, string? title, ushort command, ushort flags) : base(bounds)
     {
         Title = title;

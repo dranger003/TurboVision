@@ -32,6 +32,16 @@ public abstract class TCluster : TView
     [JsonPropertyName("strings")]
     public List<string> Strings { get; set; } = [];
 
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TCluster() : base()
+    {
+        Options |= OptionFlags.ofSelectable | OptionFlags.ofFirstClick | OptionFlags.ofPreProcess | OptionFlags.ofPostProcess;
+        EventMask |= EventConstants.evBroadcast;
+    }
+
     protected TCluster(TRect bounds, TSItem? strings) : base(bounds)
     {
         Options |= OptionFlags.ofSelectable | OptionFlags.ofFirstClick | OptionFlags.ofPreProcess | OptionFlags.ofPostProcess;
