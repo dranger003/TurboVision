@@ -13,6 +13,7 @@
 	<Folder Name="/Examples/">
 		<Project Path="Examples/Hello/Hello.csproj" />
 		<Project Path="Examples/Palette/Palette.csproj" />
+		<Project Path="Examples/TvDemo/TvDemo.csproj" />
 	</Folder>
 	<Project Path="TurboVision.Tests/TurboVision.Tests.csproj" Id="e5c54b5b-e661-4b02-8b9c-055821b8103a" />
 	<Project Path="TurboVision/TurboVision.csproj" />
