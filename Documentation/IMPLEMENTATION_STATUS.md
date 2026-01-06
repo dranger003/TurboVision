@@ -2,7 +2,7 @@
 
 This document tracks the comprehensive porting progress of magiblot/tvision to C# 14 / .NET 10.
 
-**Overall Progress: ~75-80% of full upstream feature parity**
+**Overall Progress: ~80-85% of full upstream feature parity**
 
 > **Note:** This assessment is based on a thorough file-by-file comparison between the upstream C++ source (~75 header files, ~178 source files, ~128 classes) and the C# port (~131 source files). The port includes complete implementations of core UI, editors, help system, collections, and color dialogs.
 
@@ -26,7 +26,7 @@ This document tracks the comprehensive porting progress of magiblot/tvision to C
 | Editor Module | Complete | 90% |
 | Color Selector | Complete | 90% |
 | Help System | Complete | 90% |
-| **Outline Views** | **Not Started** | **0%** |
+| Outline Views | Complete | 95% |
 | Streaming/Serialization | Complete | 85% |
 | Cross-Platform | Not Started | 0% |
 
@@ -48,7 +48,7 @@ TurboVision/
 ├── Menus/          (10 files)   - TMenuBar, TMenuBox, TStatusLine, etc.
 ├── Platform/        (9 files)   - Win32ConsoleDriver, TScreen, TEventQueue, etc.
 ├── Streaming/      (12 files)   - JsonStreamSerializer, converters, etc.
-└── Views/          (10 files)   - TView, TGroup, TFrame, TScrollBar, etc.
+└── Views/          (14 files)   - TView, TGroup, TFrame, TScrollBar, TOutline, etc.
 
 Total: ~131 C# source files
 ```
@@ -395,26 +395,25 @@ Context-sensitive help with hyperlinks is fully implemented.
 
 ---
 
-### Outline Views - 0% Complete (ONLY MISSING UI MODULE)
+### Outline Views - 95% Complete
 
-**Upstream files:** `outline.h`, `toutline.cpp`, `soutline.cpp`, `nmoutlin.cpp`
+Tree/hierarchical data display is fully implemented.
 
-**Classes to implement:**
+| Class | File | Status | LOC | Notes |
+|-------|------|--------|-----|-------|
+| TNode | Views/TNode.cs | Complete | ~55 | Tree node with children and state |
+| TOutlineViewer | Views/TOutlineViewer.cs | Complete | ~450 | Abstract base outline view |
+| TOutline | Views/TOutline.cs | Complete | ~200 | Concrete outline implementation |
+| OutlineFlags | Views/OutlineConstants.cs | Complete | ~30 | ovExpanded, ovChildren, ovLast |
+| OutlineCommands | Views/OutlineConstants.cs | Complete | ~10 | cmOutlineItemSelected |
 
-| Class | Description | Complexity |
-|-------|-------------|------------|
-| TNode | Tree node with children and state | Low |
-| TOutlineViewer | Abstract base outline view (extends TScroller) | Medium |
-| TOutline | Concrete outline implementation | Medium |
-
-**Key Features Required:**
-- Tree traversal with visitor pattern (`firstThat()`, `forEach()`)
-- Expansion/collapse state (`ovExpanded`, `ovChildren`, `ovLast`)
+**Features Implemented:**
+- Tree traversal with visitor pattern (`FirstThat()`, `ForEach()`)
+- Expansion/collapse state flags
 - Graphics generation (tree lines: │├└─, +/- indicators)
-- Keyboard: arrows, +/-, Enter, * (expand all)
-- Mouse: click to expand/collapse
-
-**Estimated effort:** ~500 lines of C# code
+- Keyboard: arrows, +/-, Enter, * (expand all), Home/End/PgUp/PgDn
+- Mouse: click graph to expand/collapse, double-click to select
+- JSON serialization support with nested node tree structure
 
 ---
 
@@ -447,6 +446,7 @@ JSON-native serialization is fully implemented.
 - File dialogs: TFileInputLine, TFileInfoPane, TFileList, TDirListBox, TFileDialog, TChDirDialog
 - Menus: TMenuView, TMenuBar, TMenuBox, TMenuPopup, TStatusLine
 - Editor: TEditor, TMemo, TFileEditor, TIndicator, TEditWindow
+- Outline: TOutline
 - Misc: TBackground
 
 **Design Decision:** JSON-native approach using System.Text.Json with `[JsonPolymorphic]`/`[JsonDerivedType]` attributes. Binary format compatibility with upstream is not required.
@@ -563,18 +563,19 @@ TurboVision.Tests/
 
 ## Prioritized Next Steps
 
-### Round 1: Outline Views (HIGHEST PRIORITY - Only Missing UI Module)
+### Round 1: Outline Views ✓ COMPLETE
 
-**Files to create:**
-- `TurboVision/Views/TNode.cs` - Tree node structure
-- `TurboVision/Views/TOutlineViewer.cs` - Abstract outline viewer base
-- `TurboVision/Views/TOutline.cs` - Concrete outline implementation
+**Files created:**
+- `TurboVision/Views/TNode.cs` - Tree node structure (~55 LOC)
+- `TurboVision/Views/TOutlineViewer.cs` - Abstract outline viewer base (~450 LOC)
+- `TurboVision/Views/TOutline.cs` - Concrete outline implementation (~200 LOC)
+- `TurboVision/Views/OutlineConstants.cs` - Flags and commands (~40 LOC)
 
 **Reference:** `Reference/tvision/include/tvision/outline.h`
 
-**Estimated effort:** ~500 LOC
+**Actual effort:** ~745 LOC
 
-### Round 2: Platform Polish - Core Features
+### Round 2: Platform Polish - Core Features (NEXT PRIORITY)
 
 **Files to modify:**
 - `Platform/Win32ConsoleDriver.cs` - Damage tracking
@@ -622,7 +623,7 @@ TurboVision.Tests/
 | editors.h | TurboVision.Editors | TEditor, TMemo, TFileEditor |
 | colorsel.h | TurboVision.Colors | TColorDialog, TColorSelector |
 | helpbase.h | TurboVision.Help | THelpFile, THelpTopic, THelpViewer |
-| outline.h | (NOT YET PORTED) | TNode, TOutline, TOutlineViewer |
+| outline.h | TurboVision.Views | TNode, TOutline, TOutlineViewer |
 | objects.h | TurboVision.Core | TPoint, TRect, TCollection |
 | tobjstrm.h | TurboVision.Streaming | IStreamable, serializers |
 | stddlg.h | TurboVision.Dialogs | TFileDialog, TChDirDialog |
@@ -640,9 +641,9 @@ TurboVision.Tests/
 - Collections: tcollect.cpp, tsortcol.cpp, tstrcoll.cpp, tstrlist.cpp, trescoll.cpp
 - Colors: colorsel.cpp, tclrsel.cpp
 - Help: help.cpp, helpbase.cpp
+- Outline: toutline.cpp, soutline.cpp, nmoutlin.cpp
 
 **Not Ported:**
-- Outline: toutline.cpp, soutline.cpp, nmoutlin.cpp
 - Platform-specific: All `source/platform/*` (different architecture in C#)
 
 ---

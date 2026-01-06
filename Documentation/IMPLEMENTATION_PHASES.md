@@ -4,8 +4,8 @@ This document outlines the complete high-level phases for achieving full feature
 
 ## Current State Summary
 
-**Completed Phases:** 1-14 (Core through Streaming - ~75-80% overall)
-**Remaining Phases:** 11, 15 (Outline Views, Cross-Platform - ~20-25% remaining)
+**Completed Phases:** 1-14, including 11 (Core through Streaming + Outline Views - ~80-85% overall)
+**Remaining Phases:** 15 (Cross-Platform - ~15-20% remaining)
 
 ---
 
@@ -23,7 +23,7 @@ This document outlines the complete high-level phases for achieving full feature
 | 8 | File Dialogs | ✓ Complete | ~1,500 |
 | 9 | Collections Framework | ✓ Complete | ~1,000 |
 | 10 | Editor Module | ✓ Complete | ~3,000 |
-| **11** | **Outline Views** | **○ Not Started** | **~500** |
+| 11 | Outline Views | ✓ Complete | ~745 |
 | 12 | Color Selector | ✓ Complete | ~800 |
 | 13 | Help System | ✓ Complete | ~1,200 |
 | 14 | Streaming/Serialization | ✓ Complete | ~2,000 |
@@ -344,65 +344,34 @@ TurboVision/Streaming/
 
 ---
 
-## Remaining Phases (11, 15)
+## Remaining Phases (15)
 
-### Phase 11: Outline Views ○ (NOT STARTED - HIGHEST PRIORITY)
+### Phase 11: Outline Views ✓ (COMPLETE)
 
-Tree/hierarchical data display.
+Tree/hierarchical data display is now fully implemented.
 
 **Upstream files:** `outline.h`, `toutline.cpp`, `soutline.cpp`, `nmoutlin.cpp`
 
-**Classes to implement:**
+**Files created:**
 ```
 TurboVision/Views/
-├── TNode.cs               // Tree node with children and state
-├── TOutlineViewer.cs      // Abstract base outline view
-└── TOutline.cs            // Concrete outline implementation
+├── TNode.cs               // Tree node with children and state (~55 LOC)
+├── TOutlineViewer.cs      // Abstract base outline view (~450 LOC)
+├── TOutline.cs            // Concrete outline implementation (~200 LOC)
+└── OutlineConstants.cs    // Flags and commands (~40 LOC)
 ```
 
-**Features Required:**
+**Features Implemented:**
 - Tree traversal with visitor pattern (`FirstThat()`, `ForEach()`)
 - Expansion/collapse state (`ovExpanded`, `ovChildren`, `ovLast`)
 - Graphics generation (tree lines: │├└─, +/- indicators)
-- Keyboard: arrows, +/-, Enter, * (expand all), Ctrl+* (expand all recursively)
-- Mouse: click to expand/collapse, double-click to select
-
-**Key Structures from outline.h:**
-```csharp
-// TNode: Tree node with linked list structure
-public class TNode
-{
-    public TNode? Next { get; set; }
-    public string Text { get; set; }
-    public TNode? ChildList { get; set; }
-    public bool Expanded { get; set; }
-}
-
-// TOutlineViewer: Abstract base (extends TScroller)
-public abstract class TOutlineViewer : TScroller
-{
-    public abstract void Adjust(TNode node, bool expand);
-    public abstract TNode? GetRoot();
-    public abstract TNode? GetNext(TNode node);
-    public abstract TNode? GetChild(TNode node, int i);
-    public abstract int GetNumChildren(TNode node);
-    public abstract string GetText(TNode node);
-    public abstract bool IsExpanded(TNode node);
-    public abstract bool HasChildren(TNode node);
-    // ... visitor methods, drawing, event handling
-}
-
-// TOutline: Concrete implementation
-public class TOutline : TOutlineViewer
-{
-    public TNode? Root { get; set; }
-    // ... implementations of abstract methods
-}
-```
+- Keyboard: arrows, +/-, Enter, * (expand all), Home/End/PgUp/PgDn
+- Mouse: click graph to expand/collapse, double-click to select
+- JSON serialization support with nested node tree structure
 
 **Dependencies:** TScroller (complete)
 
-**Estimated effort:** ~500 lines of C# code
+**Actual effort:** ~745 lines of C# code
 
 ---
 
@@ -467,7 +436,7 @@ Phase 7: Menus (TMenuBar, TStatusLine)
     │         ↑
     ├───→ Phase 10: Editor ✓
     │
-    ├───→ Phase 11: Outline ←─────────────── MISSING (extends TScroller)
+    ├───→ Phase 11: Outline ✓ COMPLETE (extends TScroller)
     │
     ├───→ Phase 12: Color Selector ✓
     │
@@ -480,8 +449,8 @@ Phase 7: Menus (TMenuBar, TStatusLine)
 
 ## Implementation Order Recommendation
 
-**Immediate (Single missing UI module):**
-1. **Phase 11: Outline Views** - Only missing major UI component (~500 LOC)
+**Completed:**
+1. **Phase 11: Outline Views** ✓ - Implemented (~745 LOC)
 
 **Short-term (Platform polish):**
 2. **Phase 3 Completion:** Platform layer polish
@@ -511,11 +480,11 @@ Phase 7: Menus (TMenuBar, TStatusLine)
 - Find/replace functionality
 - Basic file editing (open, edit, save)
 
-### Milestone 4: Complete UI Toolkit ◐ (95% - Missing Outline Only)
+### Milestone 4: Complete UI Toolkit ✓ (100%)
 - All dialogs and controls working ✓
 - Color customization ✓
 - Help system ✓
-- **Outline/tree views** - NOT YET
+- Outline/tree views ✓
 
 ### Milestone 5: Full Parity (Future)
 - Streaming/serialization ✓
@@ -526,13 +495,13 @@ Phase 7: Menus (TMenuBar, TStatusLine)
 
 ## Effort Estimates (Remaining)
 
-| Phase | Estimated LOC | Complexity | Effort |
+| Phase | Estimated LOC | Complexity | Status |
 |-------|---------------|------------|--------|
-| 11: Outline | 500 | Medium | 1-2 days |
-| 3: Platform Polish | 500 | Medium | 2-3 days |
-| 15: Cross-Platform | 2,500 | High | 2-3 weeks |
+| 11: Outline | ~745 | Medium | ✓ Complete |
+| 3: Platform Polish | 500 | Medium | Pending |
+| 15: Cross-Platform | 2,500 | High | Pending |
 
-**Total Remaining:** ~3,500 LOC
+**Total Remaining:** ~3,000 LOC
 
 ---
 
