@@ -341,7 +341,7 @@ public class JsonSerializerTests
 
         // Should have 5 views in insertion order (newest first):
         // cancelButton, okButton, label, inputLine, Frame
-        Assert.AreEqual(5, views.Count, "Should have 5 controls (frame + 4 controls)");
+        Assert.HasCount(5, views, "Should have 5 controls (frame + 4 controls)");
         Assert.IsInstanceOfType(views[0], typeof(TButton));     // cancelButton
         Assert.IsInstanceOfType(views[1], typeof(TButton));     // okButton
         Assert.IsInstanceOfType(views[2], typeof(TLabel));      // label
