@@ -37,6 +37,17 @@ public class TWindow : TGroup
 
     public string? Title { get; set; }
 
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TWindow() : base()
+    {
+        Options |= OptionFlags.ofSelectable | OptionFlags.ofTopSelect;
+        State |= StateFlags.sfShadow;
+        GrowMode = GrowFlags.gfGrowAll | GrowFlags.gfGrowRel;
+    }
+
     public TWindow(TRect bounds, string? title, short number) : base(bounds)
     {
         Title = title;

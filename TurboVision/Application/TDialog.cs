@@ -31,6 +31,17 @@ public class TDialog : TWindow
     public const byte dpCyanDialog = 1;
     public const byte dpGrayDialog = 2;
 
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TDialog() : base()
+    {
+        GrowMode = 0;
+        Flags = WindowFlags.wfMove | WindowFlags.wfClose;
+        Palette = dpGrayDialog;
+    }
+
     public TDialog(TRect bounds, string? title) : base(bounds, title, WindowConstants.wnNoNumber)
     {
         GrowMode = 0;
