@@ -1,3 +1,4 @@
+using TurboVision.Dialogs;
 using TurboVision.Views;
 
 namespace TurboVision.Streaming.Json;
@@ -101,8 +102,18 @@ public static class ViewHierarchyRebuilder
     /// </summary>
     private static void ResolveLinkedReferences(TGroup group, IReadOnlyList<TView> subViews)
     {
-        // This will be implemented when we add serialization to dialog controls
-        // Each control type with a Link property will have a LinkIndex property
-        // that stores the index during serialization, which we resolve here.
+        foreach (var view in subViews)
+        {
+            switch (view)
+            {
+                case TLabel label when label.LinkIndex >= 0 && label.LinkIndex < subViews.Count:
+                    label.Link = subViews[label.LinkIndex];
+                    break;
+
+                case THistory history when history.LinkIndex >= 0 && history.LinkIndex < subViews.Count:
+                    history.Link = subViews[history.LinkIndex] as TInputLine;
+                    break;
+            }
+        }
     }
 }

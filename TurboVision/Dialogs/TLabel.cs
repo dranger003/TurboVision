@@ -42,6 +42,16 @@ public class TLabel : TStaticText
     [JsonIgnore]
     public bool Light { get; set; }
 
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TLabel() : base()
+    {
+        Options |= OptionFlags.ofPreProcess | OptionFlags.ofPostProcess;
+        EventMask |= EventConstants.evBroadcast;
+    }
+
     public TLabel(TRect bounds, string? text, TView? link) : base(bounds, text)
     {
         Link = link;

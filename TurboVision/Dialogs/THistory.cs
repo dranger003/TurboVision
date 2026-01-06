@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Application;
 using TurboVision.Core;
 using TurboVision.Views;
@@ -9,13 +10,34 @@ namespace TurboVision.Dialogs;
 /// </summary>
 public class THistory : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "THistory";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x16, 0x17];
 
     // Icon: "\xDE~\x19~\xDD" = { ▐, ~, ▼, ~, ▌ }
     // Unicode equivalents matching upstream tvtext1.cpp
     private const string Icon = "\u2590~\u25BC~\u258C";
 
+    /// <summary>
+    /// Reference to the linked input line. Not serialized directly - use LinkIndex.
+    /// </summary>
+    [JsonIgnore]
     public TInputLine? Link { get; set; }
+
+    /// <summary>
+    /// Index of the linked input line in the parent's SubViews array.
+    /// Used for serialization; resolved after deserialization by ViewHierarchyRebuilder.
+    /// </summary>
+    [JsonPropertyName("linkIndex")]
+    public int LinkIndex { get; set; } = -1;
+
     public ushort HistoryId { get; set; }
 
     public THistory(TRect bounds, TInputLine? link, ushort historyId) : base(bounds)
