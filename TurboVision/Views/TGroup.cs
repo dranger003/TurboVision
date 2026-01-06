@@ -121,6 +121,16 @@ public class TGroup : TView
         return views;
     }
 
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TGroup() : base()
+    {
+        Options |= OptionFlags.ofSelectable | OptionFlags.ofBuffered;
+        EventMask = 0xFFFF;
+    }
+
     public TGroup(TRect bounds) : base(bounds)
     {
         Options |= OptionFlags.ofSelectable | OptionFlags.ofBuffered;

@@ -113,7 +113,33 @@ public class TView : TObject, IStreamable
     public TPoint Cursor { get; set; }
     public ushort Options { get; set; }
     public ushort EventMask { get; set; } = EventConstants.evMouseDown | EventConstants.evKeyDown | EventConstants.evCommand;
-    public ushort State { get; set; } = StateFlags.sfVisible;
+
+    /// <summary>
+    /// Backing field for State property.
+    /// </summary>
+    private ushort _state = StateFlags.sfVisible;
+
+    /// <summary>
+    /// Runtime state flags. Use SerializedState for JSON serialization.
+    /// </summary>
+    [JsonIgnore]
+    public ushort State
+    {
+        get => _state;
+        set => _state = value;
+    }
+
+    /// <summary>
+    /// State flags for serialization. On write, masks out runtime-only flags
+    /// (sfActive, sfSelected, sfFocused, sfExposed) to match upstream behavior.
+    /// </summary>
+    [JsonPropertyName("state")]
+    public ushort SerializedState
+    {
+        get => (ushort)(_state & ~(StateFlags.sfActive | StateFlags.sfSelected | StateFlags.sfFocused | StateFlags.sfExposed));
+        set => _state = value;
+    }
+
     public byte GrowMode { get; set; }
     public byte DragMode { get; set; } = DragFlags.dmLimitLoY;
     public ushort HelpCtx { get; set; }
@@ -125,6 +151,16 @@ public class TView : TObject, IStreamable
     /// </summary>
     [JsonIgnore]
     public TPoint ResizeBalance { get; set; }
+
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TView()
+    {
+        Cursor = new TPoint(0, 0);
+        ResizeBalance = new TPoint(0, 0);
+    }
 
     public TView(TRect bounds)
     {

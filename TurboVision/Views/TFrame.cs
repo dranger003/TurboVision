@@ -53,6 +53,16 @@ public class TFrame : TView
     public static string DragIcon { get; set; } = "~─┘~";
     public static string DragLeftIcon { get; set; } = "~└─~";
 
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization.
+    /// </summary>
+    [JsonConstructor]
+    protected TFrame() : base()
+    {
+        GrowMode = GrowFlags.gfGrowHiX | GrowFlags.gfGrowHiY;
+        EventMask |= EventConstants.evBroadcast | EventConstants.evMouseUp;
+    }
+
     public TFrame(TRect bounds) : base(bounds)
     {
         GrowMode = GrowFlags.gfGrowHiX | GrowFlags.gfGrowHiY;
