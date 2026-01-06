@@ -1,9 +1,11 @@
 <Solution>
 	<Folder Name="/Solution Items/">
 		<File Path="CLAUDE.md" />
+		<File Path="COPYRIGHT" />
 		<File Path="README.md" />
 	</Folder>
 	<Folder Name="/Solution Items/Documentation/">
+		<File Path="Documentation/BCL_MAPPING.md" />
 		<File Path="Documentation/CODING_STYLE.md" />
 		<File Path="Documentation/IMPLEMENTATION_PHASES.md" />
 		<File Path="Documentation/IMPLEMENTATION_STATUS.md" />
