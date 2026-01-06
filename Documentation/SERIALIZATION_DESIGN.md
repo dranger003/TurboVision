@@ -1,16 +1,41 @@
 # Serialization Design
 
-Interface-based serialization architecture for TurboVision streaming (Phase 14).
+Interface-based serialization architecture for TurboVision streaming.
+
+**Status:** ✓ IMPLEMENTED (85% complete)
 
 ## Architecture
 
 ```
 IStreamSerializer (interface)
-├── BinarySerializer : IStreamSerializer  (C++ binary format compatible)
-└── JsonSerializer : IStreamSerializer    (modern JSON via System.Text.Json)
+├── JsonStreamSerializer : IStreamSerializer  ✓ IMPLEMENTED (modern JSON via System.Text.Json)
+└── BinarySerializer : IStreamSerializer      ○ NOT IMPLEMENTED (upstream format compatible)
 ```
 
-## Interface Definition
+**Design Decision:** JSON-native approach was chosen for human-readability and debuggability. Binary format compatibility with upstream C++ is not required.
+
+---
+
+## Implementation Status
+
+| Component | File | Status |
+|-----------|------|--------|
+| IStreamable | Streaming/IStreamable.cs | ✓ Complete |
+| IStreamSerializer | Streaming/IStreamSerializer.cs | ✓ Complete |
+| IStreamReader | Streaming/IStreamReader.cs | ✓ Complete |
+| IStreamWriter | Streaming/IStreamWriter.cs | ✓ Complete |
+| StreamableTypeRegistry | Streaming/StreamableTypeRegistry.cs | ✓ Complete |
+| JsonStreamSerializer | Streaming/Json/JsonStreamSerializer.cs | ✓ Complete |
+| ViewHierarchyRebuilder | Streaming/Json/ViewHierarchyRebuilder.cs | ✓ Complete |
+| TPointJsonConverter | Streaming/Json/TPointJsonConverter.cs | ✓ Complete |
+| TRectJsonConverter | Streaming/Json/TRectJsonConverter.cs | ✓ Complete |
+| TKeyJsonConverter | Streaming/Json/TKeyJsonConverter.cs | ✓ Complete |
+| TMenuJsonConverter | Streaming/Json/TMenuJsonConverter.cs | ✓ Complete |
+| TStatusJsonConverters | Streaming/Json/TStatusJsonConverters.cs | ✓ Complete |
+
+---
+
+## Interface Definitions
 
 ```csharp
 /// <summary>
@@ -21,123 +46,156 @@ public interface IStreamSerializer
     /// <summary>
     /// Writes an object to a stream.
     /// </summary>
-    void Write(Stream stream, TStreamable obj);
+    void Write(Stream stream, IStreamable obj);
 
     /// <summary>
     /// Reads an object from a stream.
     /// </summary>
-    T Read<T>(Stream stream) where T : TStreamable;
+    T Read<T>(Stream stream) where T : IStreamable;
 
     /// <summary>
     /// Registers a type for polymorphic serialization.
     /// </summary>
-    void Register<T>(string typeId) where T : TStreamable, new();
+    void Register<T>(string typeId) where T : IStreamable, new();
 }
 
 /// <summary>
 /// Base interface for all streamable objects.
 /// </summary>
-public interface TStreamable
+public interface IStreamable
 {
     /// <summary>
-    /// Writes object state to the serializer.
+    /// Type identifier for serialization.
     /// </summary>
-    void Write(IStreamWriter writer);
-
-    /// <summary>
-    /// Reads object state from the serializer.
-    /// </summary>
-    void Read(IStreamReader reader);
+    string StreamableName { get; }
 }
 ```
 
-## Implementations
+---
 
-### BinarySerializer
+## JSON Implementation
 
-- Compatible with upstream C++ binary format
-- Uses `BinaryReader`/`BinaryWriter`
-- Type registration IDs match upstream constants
-- Supports reading files created by original Turbo Vision
+### JsonStreamSerializer Features
 
-```csharp
-public class BinarySerializer : IStreamSerializer
-{
-    private readonly Dictionary<string, Func<TStreamable>> _factories = new();
-    private readonly Dictionary<Type, string> _typeIds = new();
+- Human-readable indented JSON output
+- Uses `System.Text.Json` with `[JsonPolymorphic]` attributes
+- Type discrimination via `$type` property
+- Custom converters for complex types (TPoint, TRect, TKey, TMenu, TStatusItem)
+- State masking - runtime flags (sfActive, sfSelected) excluded from serialization
+- View hierarchy pointer fixup via `ViewHierarchyRebuilder`
 
-    public void Register<T>(string typeId) where T : TStreamable, new()
-    {
-        _factories[typeId] = () => new T();
-        _typeIds[typeof(T)] = typeId;
-    }
-
-    // Implementation reads/writes 2-byte type ID prefix
-    // followed by object data in upstream binary layout
-}
-```
-
-### JsonSerializer
-
-- Modern JSON format via `System.Text.Json`
-- Uses `[JsonPolymorphic]` for type discrimination
-- Human-readable and debuggable
-- No legacy file compatibility
+### Configuration
 
 ```csharp
-public class JsonSerializer : IStreamSerializer
+public class JsonStreamSerializer : IStreamSerializer
 {
     private readonly JsonSerializerOptions _options;
 
-    public JsonSerializer()
+    public JsonStreamSerializer()
     {
         _options = new JsonSerializerOptions
         {
             WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault
         };
-    }
 
-    // Implementation uses $type discriminator for polymorphism
+        // Add custom converters
+        _options.Converters.Add(new TPointJsonConverter());
+        _options.Converters.Add(new TRectJsonConverter());
+        _options.Converters.Add(new TKeyJsonConverter());
+        _options.Converters.Add(new TMenuJsonConverter());
+        _options.Converters.Add(new TMenuItemJsonConverter());
+        _options.Converters.Add(new TStatusItemJsonConverter());
+        _options.Converters.Add(new TStatusDefJsonConverter());
+    }
 }
 ```
 
-## Upstream Mapping
+---
 
-| Upstream Concept | Interface Method | Notes |
-|-----------------|------------------|-------|
-| `TStreamable::write()` | `TStreamable.Write(IStreamWriter)` | Instance method on objects |
-| `TStreamable::read()` | `TStreamable.Read(IStreamReader)` | Instance method on objects |
-| `TStreamableClass::build()` | Factory via `Register<T>()` | Type registration |
-| `RegisterType()` macro | `IStreamSerializer.Register<T>()` | Manual registration |
-| Stream type IDs | `typeId` parameter | String-based in C# |
-| `ipstream`/`opstream` | `IStreamReader`/`IStreamWriter` | Reader/writer abstractions |
+## View Types with JSON Serialization (30+ types)
 
-## Classes Requiring TStreamable
+### Base Views
+- TView, TGroup, TFrame, TWindow, TDialog
 
-All view classes and collections need `TStreamable` implementation:
+### Controls
+- TButton, TInputLine, TLabel, TStaticText, TParamText
 
-### Views (from Phase 4-7)
-- `TView`, `TGroup`, `TWindow`, `TDialog`
-- `TFrame`, `TScrollBar`, `TScroller`
-- `TStaticText`, `TLabel`, `TButton`
-- `TInputLine`, `TCheckBoxes`, `TRadioButtons`
-- `TListViewer`, `TListBox`, `THistory`
-- `TMenuBar`, `TMenuBox`, `TStatusLine`
+### Clusters
+- TCheckBoxes, TRadioButtons, TMultiCheckBoxes
 
-### Controls (from Phase 6)
-- `TCluster`, `TMultiCheckBoxes`
-- `TParamText`
+### Lists
+- TListBox, TSortedListBox, TListViewer
 
-### Collections (Phase 9)
-- `TCollection`, `TSortedCollection`
-- `TStringCollection`, `TResourceCollection`
+### Scrolling
+- TScrollBar, TScroller
 
-### Additional (Phase 10-13)
-- `TEditor`, `TMemo`, `TFileEditor`
-- `TOutlineViewer`, `TOutline`
-- `TColorSelector`, `TColorDialog`
-- `THelpViewer`, `THelpWindow`
+### History
+- THistory, THistoryViewer, THistoryWindow
+
+### File Dialogs
+- TFileInputLine, TFileInfoPane, TFileList, TDirListBox, TFileDialog, TChDirDialog
+
+### Menus
+- TMenuView, TMenuBar, TMenuBox, TMenuPopup, TStatusLine
+
+### Editor
+- TEditor, TMemo, TFileEditor, TIndicator, TEditWindow
+
+### Misc
+- TBackground
+
+---
+
+## Polymorphic Serialization
+
+View classes use `[JsonPolymorphic]` and `[JsonDerivedType]` attributes:
+
+```csharp
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(TView), "TView")]
+[JsonDerivedType(typeof(TGroup), "TGroup")]
+[JsonDerivedType(typeof(TFrame), "TFrame")]
+[JsonDerivedType(typeof(TWindow), "TWindow")]
+[JsonDerivedType(typeof(TDialog), "TDialog")]
+[JsonDerivedType(typeof(TButton), "TButton")]
+[JsonDerivedType(typeof(TInputLine), "TInputLine")]
+// ... 30+ derived types
+public class TView : TObject, IStreamable
+{
+    // ...
+}
+```
+
+---
+
+## View Hierarchy Reconstruction
+
+The `ViewHierarchyRebuilder` handles pointer fixup after deserialization:
+
+```csharp
+public class ViewHierarchyRebuilder
+{
+    /// <summary>
+    /// Reconstructs Owner, Next, and Last pointers after JSON deserialization.
+    /// </summary>
+    public void Rebuild(TGroup root)
+    {
+        // Walk the view tree and restore linked list pointers
+        // Handle TLabel.Link, THistory.Link via LinkIndex
+    }
+}
+```
+
+### Linked View Resolution
+
+For views that link to other views (TLabel → linked control, THistory → linked input):
+
+1. During serialization: Store `LinkIndex` (index in parent's child list)
+2. During deserialization: Use `ViewHierarchyRebuilder` to resolve index to actual view reference
+
+---
 
 ## JSON Schema Example
 
@@ -147,48 +205,110 @@ All view classes and collections need `TStreamable` implementation:
   "bounds": { "a": { "x": 10, "y": 5 }, "b": { "x": 50, "y": 20 } },
   "title": "Sample Dialog",
   "flags": 3,
+  "options": 0,
+  "growMode": 0,
   "subViews": [
     {
       "$type": "TButton",
       "bounds": { "a": { "x": 15, "y": 12 }, "b": { "x": 25, "y": 14 } },
       "title": "~O~K",
-      "command": 10
+      "command": 10,
+      "flags": 7
+    },
+    {
+      "$type": "TInputLine",
+      "bounds": { "a": { "x": 10, "y": 3 }, "b": { "x": 40, "y": 4 } },
+      "maxLen": 128,
+      "data": ""
     }
   ]
 }
 ```
 
+---
+
 ## Usage Example
 
 ```csharp
-// Registration (typically at application startup)
-var serializer = new JsonSerializer();
-serializer.Register<TDialog>("TDialog");
-serializer.Register<TButton>("TButton");
-serializer.Register<TInputLine>("TInputLine");
+// Create serializer
+var serializer = new JsonStreamSerializer();
 
-// Saving
+// Saving a dialog
 using var file = File.Create("dialog.json");
 serializer.Write(file, myDialog);
 
-// Loading
+// Loading a dialog
 using var file = File.OpenRead("dialog.json");
 var dialog = serializer.Read<TDialog>(file);
+
+// Rebuild view hierarchy pointers
+var rebuilder = new ViewHierarchyRebuilder();
+rebuilder.Rebuild(dialog);
 ```
 
-## Implementation Notes
+---
 
-1. **Polymorphism**: Both implementations handle polymorphic hierarchies differently
-   - Binary: 2-byte type ID prefix (upstream compatible)
-   - JSON: `$type` discriminator property
+## State Masking
 
-2. **Circular references**: View hierarchies have parent/child refs
-   - Binary: Uses object IDs with fixup pass
-   - JSON: Uses `[JsonIgnore]` on parent refs, reconstruct on load
+Runtime state flags are excluded from serialization using `[JsonIgnore]`:
 
-3. **Default values**: Skip serializing default values to reduce size
-   - JSON: `DefaultIgnoreCondition = WhenWritingDefault`
-   - Binary: Always write (for upstream compatibility)
+```csharp
+public class TView
+{
+    // Serialized
+    public TRect Bounds { get; set; }
+    public OptionFlags Options { get; set; }
+    public GrowFlags GrowMode { get; set; }
 
-4. **Versioning**: JSON naturally supports adding new properties
-   - Binary: May need version field for future extensions
+    // NOT serialized (runtime state)
+    [JsonIgnore]
+    public StateFlags State { get; private set; }  // sfActive, sfSelected, sfFocused
+
+    [JsonIgnore]
+    public TGroup? Owner { get; internal set; }  // Reconstructed by ViewHierarchyRebuilder
+
+    [JsonIgnore]
+    public TView? Next { get; internal set; }  // Reconstructed by ViewHierarchyRebuilder
+}
+```
+
+---
+
+## Upstream Mapping
+
+| Upstream Concept | C# Implementation | Notes |
+|-----------------|-------------------|-------|
+| `TStreamable::write()` | `IStreamable` + JSON attributes | Via System.Text.Json |
+| `TStreamable::read()` | JSON deserialization | Via System.Text.Json |
+| `TStreamableClass::build()` | `[JsonDerivedType]` | Automatic type handling |
+| `RegisterType()` macro | `[JsonDerivedType]` attributes | Compile-time registration |
+| Stream type IDs | `$type` discriminator | String-based |
+| `ipstream`/`opstream` | `JsonStreamSerializer` | Single class handles both |
+| Object tracking | `ViewHierarchyRebuilder` | Post-deserialization fixup |
+
+---
+
+## Not Implemented
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Binary format | ○ Not Implemented | Upstream C++ compatibility not required |
+| Validator serialization | ○ Not Implemented | Validators are code, not data - intentional |
+| TCollection<T> JSON converter | ○ Pending | For future collection serialization |
+
+---
+
+## Test Coverage
+
+Serialization tests in `TurboVision.Tests/Streaming/JsonSerializerTests.cs`:
+
+- Round-trip tests for all view types
+- Hierarchy reconstruction tests
+- Custom converter tests (TPoint, TRect, TKey)
+- Menu/StatusLine serialization tests
+
+**Total: 21+ serialization tests (all passing)**
+
+---
+
+*Tracking commit: 0707c8f*

@@ -4,6 +4,21 @@ Guide for deciding when to use .NET BCL types vs. porting upstream C++ implement
 
 > **Note:** All C# types and patterns below follow `Documentation/CODING_STYLE.md` conventions.
 
+## Implementation Status
+
+| Category | Status | Notes |
+|----------|--------|-------|
+| Primitives | ✓ Complete | All type mappings implemented |
+| Collections | ✓ Complete | Generic collections with TV API |
+| String/Text | ✓ Complete | UTF-8 via System.Text.Encoding |
+| Platform/System | ◐ Partial | Windows complete, cross-platform pending |
+| File Operations | ✓ Complete | All file dialogs implemented |
+| Editor Module | ✓ Complete | Gap buffer, clipboard, undo |
+| Collections Framework | ✓ Complete | TNSCollection, TSortedCollection |
+| Serialization | ✓ Complete | JSON-native with System.Text.Json |
+| Advanced Features | ◐ Partial | Outline views not started |
+| Cross-Platform | ○ Not Started | ncurses, ANSI drivers pending |
+
 ## Decision Criteria
 
 | Use BCL When | Port Upstream When |
@@ -54,9 +69,10 @@ Guide for deciding when to use .NET BCL types vs. porting upstream C++ implement
 | File operations | `FileStream`, `Path` | See File Operations section below |
 | Error codes | Exceptions | Various |
 
-### File Operations (Priority 3)
+### File Operations ✓ IMPLEMENTED
 
 Comprehensive mappings for file dialogs, directory dialogs, and path utilities.
+**Implementation:** `TurboVision/Dialogs/` - TFileDialog.cs, TChDirDialog.cs, PathUtils.cs, etc.
 
 #### Core File Types
 
@@ -110,9 +126,10 @@ Comprehensive mappings for file dialogs, directory dialogs, and path utilities.
 | `path_unix2dos()` | `path.Replace('/', '\\')` | Rarely needed |
 | `isDriveLetter()` | `char.IsLetter()` | |
 
-### Editor Module (Priority 4)
+### Editor Module ✓ IMPLEMENTED
 
 Mappings for TEditor, TMemo, TFileEditor, and related text editing components.
+**Implementation:** `TurboVision/Editors/` - TEditor.cs (1689 lines), TMemo.cs, TFileEditor.cs, etc.
 
 #### Text Buffer Management
 
@@ -181,9 +198,10 @@ Mappings for TEditor, TMemo, TFileEditor, and related text editing components.
 | Circular buffer | Custom `RingBuffer<char>` | Fixed-size wrap |
 | `queFront`, `queBack` | `int headIndex, tailIndex` | Ring buffer pointers |
 
-### Collections Framework (Priority 5)
+### Collections Framework ✓ IMPLEMENTED
 
 Mappings for TNSCollection, TSortedCollection, TStringCollection, and resource management.
+**Implementation:** `TurboVision/Collections/` - TNSCollection.cs, TSortedCollection.cs, TStringCollection.cs, etc.
 
 #### Core Collection Types
 
@@ -217,9 +235,10 @@ Mappings for TNSCollection, TSortedCollection, TStringCollection, and resource m
 | `TStringList` | `ImmutableDictionary<ushort, string>` | Read-only string table |
 | `TStrListMaker` | `Dictionary<ushort, string>` builder | String table builder |
 
-### Platform Completeness (Priority 6)
+### Platform Completeness ◐ PARTIAL
 
 Mappings for screen capabilities, damage tracking, clipboard, and Unicode handling.
+**Implementation:** `TurboVision/Platform/` - Win32ConsoleDriver.cs works; damage tracking and cross-platform pending.
 
 #### Screen Capability Detection
 
@@ -255,9 +274,11 @@ Mappings for screen capabilities, damage tracking, clipboard, and Unicode handli
 | Codepoint reconstruction | `System.Text.Rune(char, char)` | `new Rune(lead, trail)` |
 | Width calculation | `System.Globalization.StringInfo` | Grapheme clusters |
 
-### Serialization (Priority 7)
+### Serialization ✓ IMPLEMENTED
 
 Mappings for TStreamable, pstream hierarchy, and object persistence.
+**Implementation:** `TurboVision/Streaming/` - JsonStreamSerializer.cs, custom converters, 30+ view types supported.
+**Design Decision:** JSON-native approach using System.Text.Json (not binary format compatibility).
 
 #### Stream Class Hierarchy
 
@@ -308,9 +329,13 @@ Mappings for TStreamable, pstream hierarchy, and object persistence.
 | Object | `[2][name][data][']'` | Inline new object |
 | Indexed | `[1][id as ushort]` | Reference existing |
 
-### Advanced Features (Priority 8)
+### Advanced Features ◐ PARTIAL
 
 Mappings for outline views, color selector, and help system.
+
+**Color Selector:** ✓ IMPLEMENTED - `TurboVision/Colors/` (TColorDialog.cs, TColorSelector.cs, etc.)
+**Help System:** ✓ IMPLEMENTED - `TurboVision/Help/` (THelpFile.cs, THelpViewer.cs, etc.)
+**Outline Views:** ○ NOT STARTED - TNode, TOutline, TOutlineViewer need implementation
 
 #### Outline Views (TOutline)
 
@@ -343,9 +368,10 @@ Mappings for outline views, color selector, and help system.
 | Lazy loading | `Stream.Seek()` | Read topic on demand |
 | Topic navigation | `Stack<int>` | History for back button |
 
-### Cross-Platform (Priority 9)
+### Cross-Platform ○ NOT STARTED
 
 Mappings for Linux/ncurses and ANSI terminal drivers.
+**Status:** Windows driver (Win32ConsoleDriver.cs) works; Linux/ncurses and ANSI drivers not yet implemented.
 
 #### ncurses Driver
 
@@ -435,3 +461,7 @@ When porting new code, add entries to this document:
 2. If using BCL, add to appropriate table above
 3. If porting upstream, add comment with `// Matches upstream [function/file]`
 4. For complex decisions, document rationale inline
+
+---
+
+*Tracking commit: 0707c8f*
