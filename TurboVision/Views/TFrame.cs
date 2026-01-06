@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Application;
 using TurboVision.Core;
 
@@ -8,6 +9,15 @@ namespace TurboVision.Views;
 /// </summary>
 public class TFrame : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TFrame";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x01, 0x01, 0x02, 0x02, 0x03];
 
     // Frame characters: indexed by mask values built from initFrame

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -8,9 +9,19 @@ namespace TurboVision.Dialogs;
 /// </summary>
 public class TStaticText : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TStaticText";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x06];
 
-    protected string? Text { get; set; }
+    [JsonPropertyName("text")]
+    public string? Text { get; set; }
 
     public TStaticText(TRect bounds, string? text) : base(bounds)
     {

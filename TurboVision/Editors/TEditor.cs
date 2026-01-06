@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Menus;
 using TurboVision.Platform;
@@ -17,6 +18,14 @@ public delegate ushort TEditorDialog(int dialog, params object[] args);
 /// </summary>
 public class TEditor : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TEditor";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
     private static readonly byte[] DefaultPalette = [0x06, 0x07];
 
     // Static members shared across all editor instances
@@ -93,35 +102,80 @@ public class TEditor : TView
         ('Y', CommandConstants.cmCut),
     ];
 
-    // Instance members
+    // Instance members - view references (ignored for serialization, rebuilt from hierarchy)
+    [JsonIgnore]
     public TScrollBar? HScrollBar { get; set; }
+    [JsonIgnore]
     public TScrollBar? VScrollBar { get; set; }
+    [JsonIgnore]
     public TIndicator? Indicator { get; set; }
 
+    // Buffer and internal state - ignored for serialization (content serialized via GetContent/SetContent)
+    [JsonIgnore]
     protected char[]? Buffer { get; set; }
+    [JsonIgnore]
     protected uint BufSize { get; set; }
+    [JsonIgnore]
     protected uint BufLen { get; set; }
+    [JsonIgnore]
     protected uint GapLen { get; set; }
+
+    // Selection state - serialized
+    [JsonPropertyName("selStart")]
     protected uint SelStart { get; set; }
+    [JsonPropertyName("selEnd")]
     protected uint SelEnd { get; set; }
+    [JsonPropertyName("curPtr")]
     protected uint CurPtr { get; set; }
+
+    // Cursor position - serialized
+    [JsonPropertyName("curPos")]
     protected TPoint CurPos { get; set; }
+
+    // Scroll position - serialized
+    [JsonPropertyName("delta")]
     protected TPoint Delta { get; set; }
+
+    // Runtime state - ignored
+    [JsonIgnore]
     protected TPoint Limit { get; set; }
+    [JsonIgnore]
     protected int DrawLine { get; set; }
+    [JsonIgnore]
     protected uint DrawPtr { get; set; }
+    [JsonIgnore]
     protected uint DelCount { get; set; }
+    [JsonIgnore]
     protected uint InsCount { get; set; }
+    [JsonIgnore]
     protected bool IsValid { get; set; }
+    [JsonIgnore]
     protected bool CanUndo { get; set; } = true;
+
+    // Editor state - serialized
+    [JsonPropertyName("isModified")]
     protected bool IsModified { get; set; }
+
+    // Runtime state - ignored
+    [JsonIgnore]
     protected bool Selecting { get; set; }
+
+    // Editor options - serialized
+    [JsonPropertyName("overwrite")]
     protected bool Overwrite { get; set; }
+    [JsonPropertyName("autoIndent")]
     protected bool AutoIndent { get; set; } = true;
+    [JsonPropertyName("eolType")]
     protected EolType EolType { get; set; }
+    [JsonPropertyName("encoding")]
     protected EncodingMode Encoding { get; set; }
+
+    // Runtime state - ignored
+    [JsonIgnore]
     protected byte LockCount { get; set; }
+    [JsonIgnore]
     protected byte UpdateFlags_ { get; set; }
+    [JsonIgnore]
     protected int KeyState { get; set; }
 
     public TEditor(TRect bounds, TScrollBar? hScrollBar, TScrollBar? vScrollBar,

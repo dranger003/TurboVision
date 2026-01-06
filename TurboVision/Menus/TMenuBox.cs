@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -8,6 +9,15 @@ namespace TurboVision.Menus;
 /// </summary>
 public class TMenuBox : TMenuView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TMenuBox";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     // Frame characters: " ┌─┐  └─┘  │ │  ├─┤ "
     // Index 0-4: top frame, 5-9: bottom frame, 10-14: normal line, 15-19: separator
     public static string FrameChars { get; set; } = " ┌─┐  └─┘  │ │  ├─┤ ";

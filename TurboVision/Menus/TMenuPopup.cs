@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Application;
 using TurboVision.Core;
 using TurboVision.Views;
@@ -9,6 +10,15 @@ namespace TurboVision.Menus;
 /// </summary>
 public class TMenuPopup : TMenuBox
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TMenuPopup";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     // Control character mapping (Ctrl+A through Ctrl+Z to A-Z)
     private static readonly string CtrlCodes = "\0ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 

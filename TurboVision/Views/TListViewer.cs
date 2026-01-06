@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 
 namespace TurboVision.Views;
@@ -7,6 +8,15 @@ namespace TurboVision.Views;
 /// </summary>
 public abstract class TListViewer : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TListViewer";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x1A, 0x1A, 0x1B, 0x1C, 0x1D];
 
     // Special characters for markers (matching upstream specialChars)
@@ -16,12 +26,22 @@ public abstract class TListViewer : TView
     // Empty list text
     private const string EmptyText = "<empty>";
 
+    /// <summary>
+    /// Reference to horizontal scroll bar. Not serialized - exists in SubViews.
+    /// </summary>
+    [JsonIgnore]
     public TScrollBar? HScrollBar { get; set; }
+
+    /// <summary>
+    /// Reference to vertical scroll bar. Not serialized - exists in SubViews.
+    /// </summary>
+    [JsonIgnore]
     public TScrollBar? VScrollBar { get; set; }
+
     public short NumCols { get; set; }
     public short TopItem { get; set; }
     public short Focused { get; set; }
-    public short Range { get; protected set; }
+    public short Range { get; set; }
 
     protected TListViewer(TRect bounds, ushort numCols, TScrollBar? hScrollBar, TScrollBar? vScrollBar)
         : base(bounds)

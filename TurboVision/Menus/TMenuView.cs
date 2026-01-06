@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -8,6 +9,15 @@ namespace TurboVision.Menus;
 /// </summary>
 public class TMenuView : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TMenuView";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
 
     // Alt key scan code to character mapping
@@ -16,9 +26,28 @@ public class TMenuView : TView
 
     private enum MenuAction { DoNothing, DoSelect, DoReturn }
 
+    /// <summary>
+    /// Parent menu view in the hierarchy. Ignored for serialization.
+    /// </summary>
+    [JsonIgnore]
     protected TMenuView? ParentMenu { get; set; }
+
+    /// <summary>
+    /// The menu data structure.
+    /// </summary>
+    [JsonPropertyName("menu")]
     protected TMenu? Menu { get; set; }
+
+    /// <summary>
+    /// Currently selected menu item. Ignored for serialization (runtime state).
+    /// </summary>
+    [JsonIgnore]
     protected TMenuItem? Current { get; set; }
+
+    /// <summary>
+    /// Whether to put click event on exit. Runtime behavior flag.
+    /// </summary>
+    [JsonIgnore]
     protected bool PutClickEventOnExit { get; set; } = true;
 
     public TMenuView(TRect bounds, TMenu? menu, TMenuView? parent = null) : base(bounds)

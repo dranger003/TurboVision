@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 
 namespace TurboVision.Views;
@@ -7,6 +8,15 @@ namespace TurboVision.Views;
 /// </summary>
 public class TScrollBar : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TScrollBar";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x04, 0x05, 0x05];
 
     // Scroll bar character sets - matching upstream tvtext1.cpp
@@ -20,6 +30,11 @@ public class TScrollBar : TView
     public int MaxVal { get; set; }
     public int PgStep { get; set; } = 1;
     public int ArStep { get; set; } = 1;
+
+    /// <summary>
+    /// Scroll bar character set. Determined by orientation, not serialized.
+    /// </summary>
+    [JsonIgnore]
     public char[] Chars { get; set; }
 
     public TScrollBar(TRect bounds) : base(bounds)

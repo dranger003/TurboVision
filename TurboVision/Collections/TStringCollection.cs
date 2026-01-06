@@ -1,6 +1,7 @@
-namespace TurboVision.Collections;
-
 using System.Text;
+using System.Text.Json.Serialization;
+
+namespace TurboVision.Collections;
 
 /// <summary>
 /// Sorted collection of strings.
@@ -38,10 +39,8 @@ public class TStringCollection : TSortedCollection<StringWrapper, string>
     /// <summary>
     /// Gets the streamable type name.
     /// </summary>
-    public override string StreamableName
-    {
-        get { return TypeName; }
-    }
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
 
     /// <summary>
     /// Compares two string keys.

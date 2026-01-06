@@ -1,13 +1,74 @@
+using System.Text.Json.Serialization;
+using TurboVision.Application;
 using TurboVision.Core;
+using TurboVision.Dialogs;
+using TurboVision.Editors;
+using TurboVision.Menus;
 using TurboVision.Platform;
+using TurboVision.Streaming;
 
 namespace TurboVision.Views;
 
 /// <summary>
 /// The foundation view class. All visual elements derive from TView.
 /// </summary>
-public class TView : TObject
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+// Base and Group types
+[JsonDerivedType(typeof(TView), "TView")]
+[JsonDerivedType(typeof(TGroup), "TGroup")]
+[JsonDerivedType(typeof(TFrame), "TFrame")]
+[JsonDerivedType(typeof(TWindow), "TWindow")]
+[JsonDerivedType(typeof(TDialog), "TDialog")]
+// View types
+[JsonDerivedType(typeof(TScrollBar), "TScrollBar")]
+[JsonDerivedType(typeof(TScroller), "TScroller")]
+// TListViewer is abstract - concrete types only
+[JsonDerivedType(typeof(TBackground), "TBackground")]
+// Dialog controls
+[JsonDerivedType(typeof(TButton), "TButton")]
+[JsonDerivedType(typeof(TStaticText), "TStaticText")]
+[JsonDerivedType(typeof(TParamText), "TParamText")]
+[JsonDerivedType(typeof(TLabel), "TLabel")]
+[JsonDerivedType(typeof(TInputLine), "TInputLine")]
+// TCluster is abstract - concrete types only
+[JsonDerivedType(typeof(TCheckBoxes), "TCheckBoxes")]
+[JsonDerivedType(typeof(TRadioButtons), "TRadioButtons")]
+[JsonDerivedType(typeof(TMultiCheckBoxes), "TMultiCheckBoxes")]
+[JsonDerivedType(typeof(TListBox), "TListBox")]
+[JsonDerivedType(typeof(TSortedListBox), "TSortedListBox")]
+[JsonDerivedType(typeof(THistory), "THistory")]
+[JsonDerivedType(typeof(THistoryViewer), "THistoryViewer")]
+[JsonDerivedType(typeof(THistoryWindow), "THistoryWindow")]
+// File dialog types
+[JsonDerivedType(typeof(TFileInputLine), "TFileInputLine")]
+[JsonDerivedType(typeof(TFileInfoPane), "TFileInfoPane")]
+[JsonDerivedType(typeof(TFileList), "TFileList")]
+[JsonDerivedType(typeof(TDirListBox), "TDirListBox")]
+[JsonDerivedType(typeof(TFileDialog), "TFileDialog")]
+[JsonDerivedType(typeof(TChDirDialog), "TChDirDialog")]
+// Menu types
+[JsonDerivedType(typeof(TMenuView), "TMenuView")]
+[JsonDerivedType(typeof(TMenuBar), "TMenuBar")]
+[JsonDerivedType(typeof(TMenuBox), "TMenuBox")]
+[JsonDerivedType(typeof(TMenuPopup), "TMenuPopup")]
+[JsonDerivedType(typeof(TStatusLine), "TStatusLine")]
+// Editor types
+[JsonDerivedType(typeof(TEditor), "TEditor")]
+[JsonDerivedType(typeof(TMemo), "TMemo")]
+[JsonDerivedType(typeof(TFileEditor), "TFileEditor")]
+[JsonDerivedType(typeof(TIndicator), "TIndicator")]
+[JsonDerivedType(typeof(TEditWindow), "TEditWindow")]
+public class TView : TObject, IStreamable
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public const string TypeName = "TView";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public virtual string StreamableName => TypeName;
+
     // Phase type for event handling
     public enum PhaseType { phFocused, phPreProcess, phPostProcess }
 
@@ -39,9 +100,14 @@ public class TView : TObject
         return temp;
     }
 
-    // Instance members
+    // Instance members - Next and Owner are excluded from serialization to avoid circular references.
+    // They are reconstructed by ViewHierarchyRebuilder after deserialization.
+    [JsonIgnore]
     public TView? Next { get; set; }
+
+    [JsonIgnore]
     public TGroup? Owner { get; set; }
+
     public TPoint Size { get; set; }
     public TPoint Origin { get; set; }
     public TPoint Cursor { get; set; }
@@ -55,7 +121,9 @@ public class TView : TObject
     /// <summary>
     /// Balance values for resize operations. Tracks remainders when views
     /// hit size limits, allowing them to recover original sizes when possible.
+    /// Runtime state - not serialized.
     /// </summary>
+    [JsonIgnore]
     public TPoint ResizeBalance { get; set; }
 
     public TView(TRect bounds)

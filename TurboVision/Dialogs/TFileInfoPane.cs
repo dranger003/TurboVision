@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -10,10 +11,14 @@ namespace TurboVision.Dialogs;
 public class TFileInfoPane : TView
 {
     /// <summary>
-    /// Streamable name for serialization.
+    /// Type name for streaming identification.
     /// Matches upstream static const char * const _NEAR name.
     /// </summary>
-    public static readonly string StreamableName = "TFileInfoPane";
+    public new const string TypeName = "TFileInfoPane";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
 
     private static readonly byte[] InfoPanePalette = [0x1E];
 

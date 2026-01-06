@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -8,6 +9,15 @@ namespace TurboVision.Menus;
 /// </summary>
 public class TMenuBar : TMenuView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TMenuBar";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     public TMenuBar(TRect bounds, TMenu? menu) : base(bounds, menu)
     {
         GrowMode = GrowFlags.gfGrowHiX;

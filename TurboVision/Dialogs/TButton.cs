@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Platform;
 using TurboVision.Views;
@@ -9,6 +10,15 @@ namespace TurboVision.Dialogs;
 /// </summary>
 public class TButton : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TButton";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette =
     [
         0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0E, 0x0E, 0x0F
@@ -25,9 +35,17 @@ public class TButton : TView
     private const int AnimationDurationMs = 100;
 
     public string? Title { get; set; }
-    protected ushort Command { get; set; }
-    protected byte Flags { get; set; }
-    protected bool AmDefault { get; set; }
+
+    [JsonPropertyName("command")]
+    public ushort Command { get; set; }
+
+    [JsonPropertyName("flags")]
+    public byte Flags { get; set; }
+
+    [JsonPropertyName("amDefault")]
+    public bool AmDefault { get; set; }
+
+    [JsonIgnore]
     private TTimerId _animationTimer;
 
     public TButton(TRect bounds, string? title, ushort command, ushort flags) : base(bounds)

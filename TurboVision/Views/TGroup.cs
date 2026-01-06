@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 
 namespace TurboVision.Views;
@@ -7,13 +8,118 @@ namespace TurboVision.Views;
 /// </summary>
 public class TGroup : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TGroup";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
+    // Runtime state - not serialized, reconstructed after deserialization
+    [JsonIgnore]
     public TView? Last { get; set; }
+
+    [JsonIgnore]
     public TView? Current { get; set; }
+
+    [JsonIgnore]
     public TRect Clip { get; set; }
+
+    [JsonIgnore]
     public PhaseType Phase { get; set; }
+
+    [JsonIgnore]
     public TScreenCell[]? Buffer { get; set; }
+
+    [JsonIgnore]
     public byte LockFlag { get; set; }
+
+    [JsonIgnore]
     public ushort EndState { get; set; }
+
+    /// <summary>
+    /// Gets or sets the child views for JSON serialization.
+    /// On read, returns a list of all child views in Z-order.
+    /// On write, stores the views to be reconstructed into the linked list.
+    /// </summary>
+    [JsonPropertyName("subViews")]
+    public List<TView?>? SubViews
+    {
+        get => GetSubViewsForSerialization();
+        set => _pendingSubViews = value;
+    }
+
+    /// <summary>
+    /// Temporary storage for subviews during deserialization.
+    /// </summary>
+    [JsonIgnore]
+    private List<TView?>? _pendingSubViews;
+
+    /// <summary>
+    /// Gets or sets the index of the current (focused) view for serialization.
+    /// -1 if no current view.
+    /// </summary>
+    [JsonPropertyName("currentIndex")]
+    public int CurrentIndex
+    {
+        get
+        {
+            if (Current == null || Last == null) return -1;
+            var views = GetSubViewsForSerialization();
+            return views?.IndexOf(Current) ?? -1;
+        }
+        set => _pendingCurrentIndex = value;
+    }
+
+    /// <summary>
+    /// Temporary storage for current index during deserialization.
+    /// </summary>
+    [JsonIgnore]
+    private int _pendingCurrentIndex = -1;
+
+    /// <summary>
+    /// Gets the pending subviews from deserialization.
+    /// Used internally by ViewHierarchyRebuilder.
+    /// </summary>
+    internal List<TView?>? GetPendingSubViews() => _pendingSubViews;
+
+    /// <summary>
+    /// Gets the pending current index from deserialization.
+    /// Used internally by ViewHierarchyRebuilder.
+    /// </summary>
+    internal int GetPendingCurrentIndex() => _pendingCurrentIndex;
+
+    /// <summary>
+    /// Clears the pending deserialization data after rebuilding.
+    /// </summary>
+    internal void ClearPendingData()
+    {
+        _pendingSubViews = null;
+        _pendingCurrentIndex = -1;
+    }
+
+    /// <summary>
+    /// Gets the child views as a list for serialization.
+    /// Returns views in insertion order (first to last).
+    /// </summary>
+    public List<TView?>? GetSubViewsForSerialization()
+    {
+        if (Last == null) return null;
+
+        var views = new List<TView?>();
+        var view = First();
+        if (view == null) return views;
+
+        do
+        {
+            views.Add(view);
+            view = view.Next;
+        } while (view != First() && view != null);
+
+        return views;
+    }
 
     public TGroup(TRect bounds) : base(bounds)
     {

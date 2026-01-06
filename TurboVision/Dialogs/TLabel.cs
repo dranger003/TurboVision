@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -8,13 +9,38 @@ namespace TurboVision.Dialogs;
 /// </summary>
 public class TLabel : TStaticText
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TLabel";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x07, 0x08, 0x09, 0x09];
 
     // Special characters for showMarkers mode: », «, →, ←, ' ', ' '
     private static readonly char[] SpecialChars = ['\u00BB', '\u00AB', '\u001A', '\u001B', ' ', ' '];
 
-    protected TView? Link { get; set; }
-    protected bool Light { get; set; }
+    /// <summary>
+    /// Reference to the linked view. Not serialized directly - use LinkIndex.
+    /// </summary>
+    [JsonIgnore]
+    public TView? Link { get; set; }
+
+    /// <summary>
+    /// Index of the linked view in the parent's SubViews array.
+    /// Used for serialization; resolved after deserialization by ViewHierarchyRebuilder.
+    /// </summary>
+    [JsonPropertyName("linkIndex")]
+    public int LinkIndex { get; set; } = -1;
+
+    /// <summary>
+    /// Whether the label is in light (highlighted) state. Runtime state.
+    /// </summary>
+    [JsonIgnore]
+    public bool Light { get; set; }
 
     public TLabel(TRect bounds, string? text, TView? link) : base(bounds, text)
     {

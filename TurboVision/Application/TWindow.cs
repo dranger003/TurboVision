@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -8,6 +9,15 @@ namespace TurboVision.Application;
 /// </summary>
 public class TWindow : TGroup
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TWindow";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette =
     [
         0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
@@ -17,7 +27,14 @@ public class TWindow : TGroup
     public TRect ZoomRect { get; set; }
     public short Number { get; set; }
     public short Palette { get; set; } = WindowPalettes.wpBlueWindow;
+
+    /// <summary>
+    /// Reference to the frame view. Not serialized directly - the frame is included
+    /// in SubViews and this reference is reconstructed after deserialization.
+    /// </summary>
+    [JsonIgnore]
     public TFrame? Frame { get; set; }
+
     public string? Title { get; set; }
 
     public TWindow(TRect bounds, string? title, short number) : base(bounds)

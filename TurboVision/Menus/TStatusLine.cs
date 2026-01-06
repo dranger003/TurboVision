@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -8,10 +9,29 @@ namespace TurboVision.Menus;
 /// </summary>
 public class TStatusLine : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TStatusLine";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
     private const string HintSeparator = "│ ";  // Vertical bar + space
 
+    /// <summary>
+    /// Current status items. Computed from Defs based on help context.
+    /// Ignored for serialization (runtime state).
+    /// </summary>
+    [JsonIgnore]
     protected TStatusItem? Items { get; set; }
+
+    /// <summary>
+    /// Status line definitions.
+    /// </summary>
+    [JsonPropertyName("defs")]
     protected TStatusDef? Defs { get; set; }
 
     public TStatusLine(TRect bounds, TStatusDef defs) : base(bounds)

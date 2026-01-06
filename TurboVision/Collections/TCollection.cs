@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using TurboVision.Streaming;
+
 namespace TurboVision.Collections;
 
 /// <summary>
@@ -6,10 +9,10 @@ namespace TurboVision.Collections;
 /// </summary>
 /// <remarks>
 /// Matches upstream TCollection from objects.h/tcollect.cpp.
-/// Streaming support is stubbed pending Priority 7 implementation.
+/// Implements IStreamable for JSON serialization support.
 /// </remarks>
 /// <typeparam name="T">The type of items in the collection.</typeparam>
-public abstract class TCollection<T> : TNSCollection<T> where T : class
+public abstract class TCollection<T> : TNSCollection<T>, IStreamable where T : class
 {
     /// <summary>
     /// Type name for streaming identification.
@@ -38,10 +41,8 @@ public abstract class TCollection<T> : TNSCollection<T> where T : class
     /// Gets the streamable type name.
     /// Matches upstream streamableName().
     /// </summary>
-    public virtual string StreamableName
-    {
-        get { return TypeName; }
-    }
+    [JsonIgnore]
+    public virtual string StreamableName => TypeName;
 
     /// <summary>
     /// Writes the collection to a binary stream.

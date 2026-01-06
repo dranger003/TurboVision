@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -9,6 +10,15 @@ namespace TurboVision.Editors;
 /// </summary>
 public class TIndicator : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TIndicator";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x02, 0x03];
 
     // Frame characters for drag state
@@ -17,12 +27,16 @@ public class TIndicator : TView
 
     /// <summary>
     /// Current cursor location (0-based line and column).
+    /// Runtime state, ignored for serialization.
     /// </summary>
+    [JsonIgnore]
     public TPoint Location { get; protected set; }
 
     /// <summary>
     /// Whether the associated editor content has been modified.
+    /// Runtime state, ignored for serialization.
     /// </summary>
+    [JsonIgnore]
     public bool Modified { get; protected set; }
 
     public TIndicator(TRect bounds) : base(bounds)

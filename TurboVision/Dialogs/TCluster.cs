@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -8,12 +9,28 @@ namespace TurboVision.Dialogs;
 /// </summary>
 public abstract class TCluster : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TCluster";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x10, 0x11, 0x12, 0x12, 0x1F];
 
-    protected uint Value { get; set; }
-    protected uint EnableMask { get; set; } = 0xFFFFFFFF;
-    protected int Sel { get; set; }
-    protected List<string> Strings { get; } = [];
+    [JsonPropertyName("value")]
+    public uint Value { get; set; }
+
+    [JsonPropertyName("enableMask")]
+    public uint EnableMask { get; set; } = 0xFFFFFFFF;
+
+    [JsonPropertyName("sel")]
+    public int Sel { get; set; }
+
+    [JsonPropertyName("strings")]
+    public List<string> Strings { get; set; } = [];
 
     protected TCluster(TRect bounds, TSItem? strings) : base(bounds)
     {

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace TurboVision.Collections;
 
 /// <summary>
@@ -46,10 +48,8 @@ public abstract class TSortedCollection<T, TKey> : TCollection<T> where T : clas
     /// <summary>
     /// Gets the streamable type name.
     /// </summary>
-    public override string StreamableName
-    {
-        get { return TypeName; }
-    }
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
 
     /// <summary>
     /// Gets the index of an item in the collection.

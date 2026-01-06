@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 
 namespace TurboVision.Dialogs;
@@ -8,6 +9,15 @@ namespace TurboVision.Dialogs;
 /// </summary>
 public class TRadioButtons : TCluster
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TRadioButtons";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private const string Button = " ( ) ";
 
     public TRadioButtons(TRect bounds, TSItem? strings) : base(bounds, strings)

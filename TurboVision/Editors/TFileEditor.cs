@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -9,12 +10,22 @@ namespace TurboVision.Editors;
 /// </summary>
 public class TFileEditor : TEditor
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TFileEditor";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private const string BackupExt = ".bak";
 
     /// <summary>
     /// Full path to the current file being edited.
     /// Empty string indicates an untitled document.
     /// </summary>
+    [JsonPropertyName("fileName")]
     public string FileName { get; set; } = "";
 
     public TFileEditor(TRect bounds, TScrollBar? hScrollBar, TScrollBar? vScrollBar,

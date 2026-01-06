@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -9,6 +10,15 @@ namespace TurboVision.Editors;
 /// </summary>
 public class TMemo : TEditor
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TMemo";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x1A, 0x1B];
 
     public TMemo(TRect bounds, TScrollBar? hScrollBar, TScrollBar? vScrollBar,

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Application;
 using TurboVision.Core;
 using TurboVision.Views;
@@ -10,6 +11,15 @@ namespace TurboVision.Editors;
 /// </summary>
 public class TEditWindow : TWindow
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TEditWindow";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly TPoint MinEditWinSize = new(24, 6);
 
     private const string ClipboardTitle = "Clipboard";
@@ -17,7 +27,9 @@ public class TEditWindow : TWindow
 
     /// <summary>
     /// The file editor contained within this window.
+    /// Runtime reference to child view, ignored for serialization.
     /// </summary>
+    [JsonIgnore]
     public TFileEditor? Editor { get; private set; }
 
     public TEditWindow(TRect bounds, string? fileName, int number)

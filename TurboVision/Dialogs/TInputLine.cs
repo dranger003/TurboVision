@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Platform;
 using TurboVision.Views;
@@ -9,6 +10,15 @@ namespace TurboVision.Dialogs;
 /// </summary>
 public class TInputLine : TView
 {
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TInputLine";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
     private static readonly byte[] DefaultPalette = [0x13, 0x13, 0x14, 0x15];
 
     // Arrow characters for scroll indication
@@ -29,16 +39,23 @@ public class TInputLine : TView
     public int SelStart { get; set; }
     public int SelEnd { get; set; }
 
+    [JsonIgnore]
     private int _anchor;
 
-    // Validator support
+    // Validator support - not serialized (validators are code, not data)
+    [JsonIgnore]
     private TValidator? _validator;
 
-    // Saved state for validation rollback
+    // Saved state for validation rollback - runtime state
+    [JsonIgnore]
     private string _oldData = "";
+    [JsonIgnore]
     private int _oldCurPos;
+    [JsonIgnore]
     private int _oldFirstPos;
+    [JsonIgnore]
     private int _oldSelStart;
+    [JsonIgnore]
     private int _oldSelEnd;
 
     public TInputLine(TRect bounds, int limit, ushort limitMode = ilMaxBytes)

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -8,7 +9,17 @@ namespace TurboVision.Dialogs;
 /// </summary>
 public class TListBox : TListViewer
 {
-    protected List<string>? Items { get; set; }
+    /// <summary>
+    /// Type name for streaming identification.
+    /// </summary>
+    public new const string TypeName = "TListBox";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string StreamableName => TypeName;
+
+    [JsonPropertyName("items")]
+    public List<string>? Items { get; set; }
 
     public TListBox(TRect bounds, ushort numCols, TScrollBar? scrollBar)
         : base(bounds, numCols, null, scrollBar)
