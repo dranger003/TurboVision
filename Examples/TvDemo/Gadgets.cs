@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using TurboVision.Core;
 using TurboVision.Views;
 
@@ -40,7 +41,7 @@ public class THeapView : TView
 
     public long HeapSize()
     {
-        long total = GC.GetTotalMemory(false);
+        long total = Process.GetCurrentProcess().WorkingSet64;
         _heapStr = total.ToString().PadLeft(12);
         return total;
     }

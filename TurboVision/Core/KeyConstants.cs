@@ -337,6 +337,18 @@ public static class KeyConstants
     public const ushort kbAltF9 = 0x7000;
     public const ushort kbAltF10 = 0x7100;
 
+    // Ctrl + function keys
+    public const ushort kbCtrlF1 = 0x5E00;
+    public const ushort kbCtrlF2 = 0x5F00;
+    public const ushort kbCtrlF3 = 0x6000;
+    public const ushort kbCtrlF4 = 0x6100;
+    public const ushort kbCtrlF5 = 0x6200;
+    public const ushort kbCtrlF6 = 0x6300;
+    public const ushort kbCtrlF7 = 0x6400;
+    public const ushort kbCtrlF8 = 0x6500;
+    public const ushort kbCtrlF9 = 0x6600;
+    public const ushort kbCtrlF10 = 0x6700;
+
     // Control key state masks
     public const ushort kbRightShift = 0x0001;
     public const ushort kbLeftShift = 0x0002;

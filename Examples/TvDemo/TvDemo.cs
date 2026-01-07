@@ -60,7 +60,7 @@ public class TVDemo : TApplication
     {
         r.B = new TPoint(r.B.X, r.A.Y + 1);
 
-        var sub1 = new TSubMenu("\x360", 0, DemoHelp.hcSystem)
+        var sub1 = new TSubMenu("~\u2261~", 0, DemoHelp.hcSystem)
             .Add(new TMenuItem("~A~bout...", TvCmds.cmAboutCmd, KeyConstants.kbNoKey, DemoHelp.hcSAbout))
             .Add(TMenuItem.NewLine())
             .Add(new TMenuItem("~P~uzzle", TvCmds.cmPuzzleCmd, KeyConstants.kbNoKey, DemoHelp.hcSPuzzle))
@@ -73,10 +73,11 @@ public class TVDemo : TApplication
             .Add(new TMenuItem("~O~pen...", TvCmds.cmOpenCmd, KeyConstants.kbF3, DemoHelp.hcFOpen, "F3"))
             .Add(new TMenuItem("~C~hange Dir...", TvCmds.cmChDirCmd, KeyConstants.kbNoKey, DemoHelp.hcFChangeDir))
             .Add(TMenuItem.NewLine())
+            .Add(new TMenuItem("~D~OS Shell", CommandConstants.cmDosShell, KeyConstants.kbNoKey, DemoHelp.hcFDosShell))
             .Add(new TMenuItem("E~x~it", CommandConstants.cmQuit, KeyConstants.kbAltX, DemoHelp.hcFExit, "Alt-X"));
 
         var sub3 = new TSubMenu("~W~indows", 0, DemoHelp.hcWindows)
-            .Add(new TMenuItem("~R~esize/move", CommandConstants.cmResize, KeyConstants.kbNoKey, DemoHelp.hcWSizeMove, "Ctrl-F5"))
+            .Add(new TMenuItem("~R~esize/move", CommandConstants.cmResize, KeyConstants.kbCtrlF5, DemoHelp.hcWSizeMove, "Ctrl-F5"))
             .Add(new TMenuItem("~Z~oom", CommandConstants.cmZoom, KeyConstants.kbF5, DemoHelp.hcWZoom, "F5"))
             .Add(new TMenuItem("~N~ext", CommandConstants.cmNext, KeyConstants.kbF6, DemoHelp.hcWNext, "F6"))
             .Add(new TMenuItem("~C~lose", CommandConstants.cmClose, KeyConstants.kbAltF3, DemoHelp.hcWClose, "Alt-F3"))

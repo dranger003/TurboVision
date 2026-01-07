@@ -31,7 +31,7 @@ public class TChBackground : TDialog
             ChangeBounds(r);
         }
 
-        _input = new TInputLine(new TRect(4, 5, 7, 6), 1);
+        _input = new TInputLine(new TRect(4, 5, 7, 6), 1, TInputLine.ilMaxChars);
         Insert(_input);
 
         Insert(new TStaticText(new TRect(2, 2, 27, 3), "Enter background pattern:"));

@@ -12,6 +12,7 @@ public static class TvCmds
     public const ushort cmCalcCmd = 104;
     public const ushort cmOpenCmd = 105;
     public const ushort cmChDirCmd = 106;
+    // cmDosShell is defined in CommandConstants (36) and handled by TApplication
     public const ushort cmMouseCmd = 108;
     public const ushort cmColorCmd = 109;
     public const ushort cmSaveCmd = 110;
