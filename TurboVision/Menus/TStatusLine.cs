@@ -97,8 +97,6 @@ public class TStatusLine : TView
                             ev.What = EventConstants.evCommand;
                             ev.Message.Command = item.Command;
                             ev.Message.InfoPtr = null;
-                            PutEvent(ev);
-                            ClearEvent(ref ev);
                             return;
                         }
                     }
