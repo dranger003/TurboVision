@@ -19,12 +19,6 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
     private int _rows;
     private bool _disposed;
 
-    // Mouse state tracking
-    private byte _lastButtons;
-    private TPoint _lastMousePos;
-    private DateTime _lastClickTime;
-    private int _clickCount;
-
     // Key code conversion tables (convert NT virtual scan codes to BIOS key codes)
     // Combined shift mask for checking shift state
     private const ushort kbShift = KeyConstants.kbRightShift | KeyConstants.kbLeftShift;
@@ -430,77 +424,33 @@ public sealed class Win32ConsoleDriver : IScreenDriver, IEventSource, IDisposabl
     {
         ev = default;
 
-        byte buttons = (byte)(mouseEvent.dwButtonState & 0x07);
-        var where = new TPoint(mouseEvent.dwMousePosition.X, mouseEvent.dwMousePosition.Y);
+        // Match upstream getWin32Mouse (win32con.cpp:606-626):
+        // The driver returns evMouse with RAW mouse data.
+        // TEventQueue.GetMouseEvent determines the specific event type
+        // (evMouseDown, evMouseUp, evMouseMove, evMouseAuto) by comparing
+        // with lastMouse state.
 
-        // Determine event type
-        if ((mouseEvent.dwEventFlags & MOUSE_MOVED) != 0)
-        {
-            ev.What = EventConstants.evMouseMove;
-        }
-        else if (buttons != 0 && _lastButtons == 0)
-        {
-            ev.What = EventConstants.evMouseDown;
+        ev.What = EventConstants.evMouse; // Generic mouse event, type determined by TEventQueue
 
-            // Check for double/triple click
-            var now = DateTime.UtcNow;
-            if ((now - _lastClickTime).TotalMilliseconds < 400 && where.Equals(_lastMousePos))
-            {
-                _clickCount++;
-            }
-            else
-            {
-                _clickCount = 1;
-            }
-            _lastClickTime = now;
-        }
-        else if (buttons == 0 && _lastButtons != 0)
-        {
-            ev.What = EventConstants.evMouseUp;
-        }
-        else if ((mouseEvent.dwEventFlags & (MOUSE_WHEELED | MOUSE_HWHEELED)) != 0)
-        {
-            ev.What = EventConstants.evMouseWheel;
-        }
-        else
-        {
-            ev.What = EventConstants.evMouseAuto;
-        }
-
-        ev.Mouse.Where = where;
-        ev.Mouse.Buttons = buttons;
+        ev.Mouse.Where = new TPoint(mouseEvent.dwMousePosition.X, mouseEvent.dwMousePosition.Y);
+        ev.Mouse.Buttons = (byte)(mouseEvent.dwButtonState & 0x07);
+        ev.Mouse.EventFlags = (ushort)mouseEvent.dwEventFlags;
         ev.Mouse.ControlKeyState = (ushort)(mouseEvent.dwControlKeyState & 0xFF);
 
-        // Event flags
-        ushort eventFlags = 0;
-        if ((mouseEvent.dwEventFlags & MOUSE_MOVED) != 0)
-        {
-            eventFlags |= EventConstants.meMouseMoved;
-        }
-        if (_clickCount == 2)
-        {
-            eventFlags |= EventConstants.meDoubleClick;
-        }
-        else if (_clickCount >= 3)
-        {
-            eventFlags |= EventConstants.meTripleClick;
-        }
-        ev.Mouse.EventFlags = eventFlags;
-
-        // Wheel
+        // Handle wheel events (these are special and detected via dwEventFlags)
+        bool positive = (mouseEvent.dwButtonState & 0x80000000) == 0;
         if ((mouseEvent.dwEventFlags & MOUSE_WHEELED) != 0)
         {
-            bool up = (mouseEvent.dwButtonState & 0x80000000) == 0;
-            ev.Mouse.Wheel = up ? EventConstants.mwUp : EventConstants.mwDown;
+            ev.Mouse.Wheel = positive ? EventConstants.mwUp : EventConstants.mwDown;
         }
         else if ((mouseEvent.dwEventFlags & MOUSE_HWHEELED) != 0)
         {
-            bool right = (mouseEvent.dwButtonState & 0x80000000) == 0;
-            ev.Mouse.Wheel = right ? EventConstants.mwRight : EventConstants.mwLeft;
+            ev.Mouse.Wheel = positive ? EventConstants.mwRight : EventConstants.mwLeft;
         }
-
-        _lastButtons = buttons;
-        _lastMousePos = where;
+        else
+        {
+            ev.Mouse.Wheel = 0;
+        }
 
         return true;
     }
