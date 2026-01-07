@@ -178,22 +178,68 @@ public class TFrame : TView
     {
         int width = Size.X;
 
-        // Simple frame line without child view framing (for now)
-        char leftChar = FrameChars[InitFrame[n]];
-        char middleChar = FrameChars[InitFrame[n + 1]];
-        char rightChar = FrameChars[InitFrame[n + 2]];
-
-        frameBuf.PutChar(0, leftChar);
-        frameBuf.PutAttribute(0, color);
-
+        // Build frame mask array
+        Span<byte> frameMask = stackalloc byte[width];
+        frameMask[0] = InitFrame[n];
         for (int x = 1; x < width - 1; x++)
         {
-            frameBuf.PutChar(x, middleChar);
-            frameBuf.PutAttribute(x, color);
+            frameMask[x] = InitFrame[n + 1];
+        }
+        frameMask[width - 1] = InitFrame[n + 2];
+
+        // Check all child views for ofFramed flag and modify mask accordingly
+        if (Owner is TGroup ownerGroup)
+        {
+            var v = ownerGroup.First();
+            while (v != null && v != this)
+            {
+                if ((v.Options & OptionFlags.ofFramed) != 0 && (v.State & StateFlags.sfVisible) != 0)
+                {
+                    ushort mask = 0;
+                    if (y < v.Origin.Y)
+                    {
+                        if (y == v.Origin.Y - 1)
+                            mask = 0x0A06; // Top edge of framed view
+                    }
+                    else if (y < v.Origin.Y + v.Size.Y)
+                    {
+                        mask = 0x0005; // Side edges
+                    }
+                    else if (y == v.Origin.Y + v.Size.Y)
+                    {
+                        mask = 0x0A03; // Bottom edge of framed view
+                    }
+
+                    if (mask != 0)
+                    {
+                        int start = Math.Max(v.Origin.X, 1);
+                        int end = Math.Min(v.Origin.X + v.Size.X, width - 1);
+                        if (start < end)
+                        {
+                            byte maskLow = (byte)(mask & 0x00FF);
+                            byte maskHigh = (byte)((mask & 0xFF00) >> 8);
+                            frameMask[start - 1] |= maskLow;
+                            frameMask[end] |= (byte)(maskLow ^ maskHigh);
+                            if (maskLow != 0)
+                            {
+                                for (int x = start; x < end; x++)
+                                {
+                                    frameMask[x] |= maskHigh;
+                                }
+                            }
+                        }
+                    }
+                }
+                v = v.NextView();
+            }
         }
 
-        frameBuf.PutChar(width - 1, rightChar);
-        frameBuf.PutAttribute(width - 1, color);
+        // Write the frame characters from the mask
+        for (int x = 0; x < width; x++)
+        {
+            frameBuf.PutChar(x, FrameChars[frameMask[x]]);
+            frameBuf.PutAttribute(x, color);
+        }
     }
 
     public override TPalette? GetPalette()
