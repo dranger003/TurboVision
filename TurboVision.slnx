@@ -15,6 +15,9 @@
 		<Project Path="Examples/Palette/Palette.csproj" />
 		<Project Path="Examples/TvDemo/TvDemo.csproj" />
 	</Folder>
+	<Folder Name="/Solution Items/Reference/">
+		<File Path="Reference/SOURCE.md" />
+	</Folder>
 	<Project Path="TurboVision.Tests/TurboVision.Tests.csproj" Id="e5c54b5b-e661-4b02-8b9c-055821b8103a" />
 	<Project Path="TurboVision/TurboVision.csproj" />
 </Solution>
