@@ -39,6 +39,7 @@ public static class TScreen
         ScreenWidth = (ushort)driver.Cols;
         ScreenHeight = (ushort)driver.Rows;
         _screenBuffer = new TScreenCell[ScreenWidth * ScreenHeight];
+        CursorLines = driver.GetCursorType();
     }
 
     /// <summary>
