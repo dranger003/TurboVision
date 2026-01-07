@@ -34,7 +34,7 @@ public class TColorDialog : TDialog
 
         if (palette != null)
         {
-            Pal = new TPalette(palette.Data.ToArray());
+            Pal = new TPalette(palette);
         }
 
         // Group list with scrollbar
@@ -170,12 +170,14 @@ public class TColorDialog : TDialog
     /// </summary>
     public void SetData(TPalette palette)
     {
-        // Convert TColorAttr span to byte array for SetData
+        // Skip the length prefix at index 0 since SetData creates a new TPalette that adds its own.
+        // Palette.Data[0] is length, Data[1..ColorCount] are the actual color values.
         var data = palette.Data;
-        Span<byte> bytes = stackalloc byte[data.Length];
-        for (int i = 0; i < data.Length; i++)
+        int colorCount = palette.ColorCount;
+        Span<byte> bytes = stackalloc byte[colorCount];
+        for (int i = 0; i < colorCount; i++)
         {
-            bytes[i] = data[i]; // implicit conversion TColorAttr -> byte
+            bytes[i] = data[i + 1]; // Start from index 1 (skip length prefix)
         }
         SetData((ReadOnlySpan<byte>)bytes);
     }
