@@ -325,6 +325,18 @@ public static class KeyConstants
     public const ushort kbAltY = 0x1500;
     public const ushort kbAltZ = 0x2C00;
 
+    // Alt + number keys
+    public const ushort kbAlt1 = 0x7800;
+    public const ushort kbAlt2 = 0x7900;
+    public const ushort kbAlt3 = 0x7A00;
+    public const ushort kbAlt4 = 0x7B00;
+    public const ushort kbAlt5 = 0x7C00;
+    public const ushort kbAlt6 = 0x7D00;
+    public const ushort kbAlt7 = 0x7E00;
+    public const ushort kbAlt8 = 0x7F00;
+    public const ushort kbAlt9 = 0x8000;
+    public const ushort kbAlt0 = 0x8100;
+
     // Alt + function keys
     public const ushort kbAltF1 = 0x6800;
     public const ushort kbAltF2 = 0x6900;
