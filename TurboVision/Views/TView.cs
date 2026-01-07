@@ -1186,32 +1186,56 @@ public class TView : TObject, IStreamable
 
     public static void EnableCommand(ushort command)
     {
+        // Only set CommandSetChanged if the command is currently disabled (will actually change)
+        // This matches upstream: commandSetChanged = commandSetChanged || !curCommandSet.has(command)
+        if (!CurCommandSet.Has(command))
+        {
+            CommandSetChanged = true;
+        }
         CurCommandSet.EnableCmd(command);
-        CommandSetChanged = true;
     }
 
     public static void DisableCommand(ushort command)
     {
+        // Only set CommandSetChanged if the command is currently enabled (will actually change)
+        // This matches upstream: commandSetChanged = commandSetChanged || curCommandSet.has(command)
+        if (CurCommandSet.Has(command))
+        {
+            CommandSetChanged = true;
+        }
         CurCommandSet.DisableCmd(command);
-        CommandSetChanged = true;
     }
 
     public static void EnableCommands(TCommandSet commands)
     {
+        // Only set CommandSetChanged if enabling commands that aren't all already enabled
+        // This matches upstream behavior
+        if (!CurCommandSet.ContainsAll(commands))
+        {
+            CommandSetChanged = true;
+        }
         CurCommandSet.EnableCmd(commands);
-        CommandSetChanged = true;
     }
 
     public static void DisableCommands(TCommandSet commands)
     {
+        // Only set CommandSetChanged if disabling commands that aren't all already disabled
+        // This matches upstream behavior
+        if (CurCommandSet.ContainsAny(commands))
+        {
+            CommandSetChanged = true;
+        }
         CurCommandSet.DisableCmd(commands);
-        CommandSetChanged = true;
     }
 
     public static void SetCommands(TCommandSet commands)
     {
+        // Only set CommandSetChanged if the command set actually changes
+        if (!CurCommandSet.Equals(commands))
+        {
+            CommandSetChanged = true;
+        }
         CurCommandSet.CopyFrom(commands);
-        CommandSetChanged = true;
     }
 
     public static void GetCommands(TCommandSet commands)
@@ -1348,11 +1372,15 @@ public class TView : TObject, IStreamable
     /// </summary>
     private static void Change(byte mode, TPoint delta, ref TPoint p, ref TPoint s, ushort ctrlState)
     {
-        if ((mode & DragFlags.dmDragMove) != 0 && (ctrlState & KeyConstants.kbShift) == 0)
+        // Check for either left or right shift key
+        const ushort shiftMask = KeyConstants.kbRightShift | KeyConstants.kbLeftShift;
+        bool shiftPressed = (ctrlState & shiftMask) != 0;
+
+        if ((mode & DragFlags.dmDragMove) != 0 && !shiftPressed)
         {
             p = p + delta;
         }
-        else if ((mode & DragFlags.dmDragGrow) != 0 && (ctrlState & KeyConstants.kbShift) != 0)
+        else if ((mode & DragFlags.dmDragGrow) != 0 && shiftPressed)
         {
             s = s + delta;
         }

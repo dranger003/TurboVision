@@ -110,6 +110,39 @@ public class TCommandSet : IEquatable<TCommandSet>
         }
     }
 
+    /// <summary>
+    /// Checks if this set contains all commands from another set.
+    /// Returns true if every command enabled in 'other' is also enabled in this set.
+    /// </summary>
+    public bool ContainsAll(TCommandSet other)
+    {
+        for (int i = 0; i < _commands.Length; i++)
+        {
+            // Check if all bits in other are also in this
+            if ((other._commands[i] & ~_commands[i]) != 0)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Checks if this set contains any commands from another set.
+    /// Returns true if at least one command enabled in 'other' is also enabled in this set.
+    /// </summary>
+    public bool ContainsAny(TCommandSet other)
+    {
+        for (int i = 0; i < _commands.Length; i++)
+        {
+            if ((_commands[i] & other._commands[i]) != 0)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static TCommandSet operator &(TCommandSet left, TCommandSet right)
     {
         TCommandSet result = new();
