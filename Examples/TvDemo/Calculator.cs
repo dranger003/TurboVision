@@ -175,7 +175,7 @@ public class TCalcDisplay : TView
                 break;
 
             case '_': // Underscore (keyboard version of +/-)
-            case '\xF1': // +/- extended character
+            case '\u00B1': // ± (plus-minus) character
                 _sign = _sign == ' ' ? '-' : ' ';
                 break;
 
@@ -236,7 +236,7 @@ public class TCalculator : TDialog
 {
     private static readonly string[] KeyChar =
     [
-        "C", "\x1B", "%", "\xF1", // 0x1B is escape, 0xF1 is +/- char
+        "C", "\x1B", "%", "\u00B1", // 0x1B is escape, 0x00B1 is ± (plus-minus) char
         "7", "8", "9", "/",
         "4", "5", "6", "*",
         "1", "2", "3", "-",
