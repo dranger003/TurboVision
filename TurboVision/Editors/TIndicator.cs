@@ -21,9 +21,10 @@ public class TIndicator : TView
 
     private static readonly byte[] DefaultPalette = [0x02, 0x03];
 
-    // Frame characters for drag state
-    private const char DragFrame = '\u2593';   // Dark shade character
-    private const char NormalFrame = '\u2591'; // Light shade character
+    // Frame characters for drag state - upstream tvtext1.cpp uses box drawing chars
+    // CP437: 0xCD=═ DOUBLE HORIZONTAL, 0xC4=─ LIGHT HORIZONTAL
+    private const char DragFrame = '\u2550';   // ═ Double horizontal line
+    private const char NormalFrame = '\u2500'; // ─ Light horizontal line
 
     /// <summary>
     /// Current cursor location (0-based line and column).

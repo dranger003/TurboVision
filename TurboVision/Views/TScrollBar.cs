@@ -20,10 +20,11 @@ public class TScrollBar : TView
     private static readonly byte[] DefaultPalette = [0x04, 0x05, 0x05];
 
     // Scroll bar character sets - matching upstream tvtext1.cpp
-    // vChars: {'\x1E', '\x1F', '\xB1', '\xFE', '\xB2'} = {▲, ▼, ░, ■, ▓}
-    // hChars: {'\x11', '\x10', '\xB1', '\xFE', '\xB2'} = {◄, ►, ░, ■, ▓}
-    public static char[] VChars { get; set; } = ['\u25B2', '\u25BC', '\u2591', '\u25A0', '\u2593'];
-    public static char[] HChars { get; set; } = ['\u25C4', '\u25BA', '\u2591', '\u25A0', '\u2593'];
+    // vChars: {'\x1E', '\x1F', '\xB1', '\xFE', '\xB2'} = {▲, ▼, ▒, ■, ▓}
+    // hChars: {'\x11', '\x10', '\xB1', '\xFE', '\xB2'} = {◄, ►, ▒, ■, ▓}
+    // CP437: 0xB0=░ LIGHT SHADE, 0xB1=▒ MEDIUM SHADE, 0xB2=▓ DARK SHADE
+    public static char[] VChars { get; set; } = ['\u25B2', '\u25BC', '\u2592', '\u25A0', '\u2593'];
+    public static char[] HChars { get; set; } = ['\u25C4', '\u25BA', '\u2592', '\u25A0', '\u2593'];
 
     public int Value { get; set; }
     public int MinVal { get; set; }
