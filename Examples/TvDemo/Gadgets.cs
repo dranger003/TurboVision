@@ -10,6 +10,8 @@ namespace TvDemo;
 /// </summary>
 public class THeapView : TView
 {
+    private static readonly Process _currentProcess = Process.GetCurrentProcess();
+
     private long _oldMem;
     private long _newMem;
     private string _heapStr = string.Empty;
@@ -18,6 +20,7 @@ public class THeapView : TView
     {
         _oldMem = 0;
         _newMem = HeapSize();
+        _heapStr = _newMem.ToString().PadLeft(12);
     }
 
     public override void Draw()
@@ -32,18 +35,19 @@ public class THeapView : TView
 
     public virtual void Update()
     {
-        if ((_newMem = HeapSize()) != _oldMem)
+        _newMem = HeapSize();
+        if (_newMem != _oldMem)
         {
             _oldMem = _newMem;
+            _heapStr = _newMem.ToString().PadLeft(12);
             DrawView();
         }
     }
 
     public long HeapSize()
     {
-        long total = Process.GetCurrentProcess().WorkingSet64;
-        _heapStr = total.ToString().PadLeft(12);
-        return total;
+        _currentProcess.Refresh();
+        return _currentProcess.PrivateMemorySize64;
     }
 }
 
