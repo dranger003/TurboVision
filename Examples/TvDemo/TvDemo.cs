@@ -67,7 +67,7 @@ public class TVDemo : TApplication
             .Add(new TMenuItem("Ca~l~endar", TvCmds.cmCalendarCmd, KeyConstants.kbNoKey, DemoHelp.hcSCalendar))
             .Add(new TMenuItem("Ascii ~T~able", TvCmds.cmAsciiCmd, KeyConstants.kbNoKey, DemoHelp.hcSAsciiTable))
             .Add(new TMenuItem("~C~alculator", TvCmds.cmCalcCmd, KeyConstants.kbNoKey, DemoHelp.hcSCalculator))
-            .Add(new TMenuItem("~E~vent Viewer", TvCmds.cmEventViewCmd, KeyConstants.kbNoKey, DemoHelp.hcNoContext, "Alt-0"));
+            .Add(new TMenuItem("~E~vent Viewer", TvCmds.cmEventViewCmd, KeyConstants.kbAlt0, DemoHelp.hcNoContext, "Alt-0"));
 
         var sub2 = new TSubMenu("~F~ile", 0, DemoHelp.hcFile)
             .Add(new TMenuItem("~O~pen...", TvCmds.cmOpenCmd, KeyConstants.kbF3, DemoHelp.hcFOpen, "F3"))
@@ -396,8 +396,17 @@ public class TVDemo : TApplication
                 c.SetData(pal);
             if (DeskTop?.ExecView(c) != CommandConstants.cmCancel && c.Pal != null)
             {
-                // Update application palette
-                // SetScreenMode(TScreen.ScreenMode);
+                // Copy dialog's palette back to the application's palette
+                var appPal = GetPalette();
+                if (appPal != null)
+                {
+                    for (int i = 0; i < c.Pal.Length && i < appPal.Length; i++)
+                    {
+                        appPal[i] = c.Pal[i];
+                    }
+                }
+                // Refresh screen with new colors
+                SetScreenMode(TScreen.ScreenMode);
             }
             c.Dispose();
         }
