@@ -926,6 +926,7 @@ public class TView : TObject, IStreamable
     public void ClearEvent(ref TEvent ev)
     {
         ev.What = EventConstants.evNothing;
+        ev.Message.InfoPtr = this;
     }
 
     public bool EventAvail()
@@ -955,15 +956,29 @@ public class TView : TObject, IStreamable
 
     public bool Focus()
     {
-        if (GetState(StateFlags.sfFocused))
+        bool result = true;
+
+        if (!GetState(StateFlags.sfSelected | StateFlags.sfModal))
         {
-            return true;
+            if (Owner != null)
+            {
+                result = Owner.Focus();
+                if (result)
+                {
+                    if (Owner.Current == null ||
+                        (Owner.Current.Options & OptionFlags.ofValidate) == 0 ||
+                        Owner.Current.Valid(CommandConstants.cmReleasedFocus))
+                    {
+                        Select();
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
         }
-        if (Owner != null)
-        {
-            return Owner.Focus() && Owner.SetCurrent(this, SelectMode.normalSelect);
-        }
-        return false;
+        return result;
     }
 
     // Z-order
