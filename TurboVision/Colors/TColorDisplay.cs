@@ -10,6 +10,8 @@ public class TColorDisplay : TView
 {
     private byte _colorValue;
     private readonly string _text;
+    private TPalette? _palette;
+    private int _paletteIndex;
 
     public TColorDisplay(TRect bounds, string text) : base(bounds)
     {
@@ -48,11 +50,21 @@ public class TColorDisplay : TView
             {
                 case ColorCommands.cmColorBackgroundChanged:
                     _colorValue = (byte)((_colorValue & 0x0F) | ((ev.Message.InfoInt << 4) & 0xF0));
+                    // Write back to palette (like C++ pointer dereference)
+                    if (_palette != null && _paletteIndex > 0 && _paletteIndex < _palette.Length)
+                    {
+                        _palette[_paletteIndex] = _colorValue;
+                    }
                     DrawView();
                     break;
 
                 case ColorCommands.cmColorForegroundChanged:
                     _colorValue = (byte)((_colorValue & 0xF0) | (ev.Message.InfoInt & 0x0F));
+                    // Write back to palette (like C++ pointer dereference)
+                    if (_palette != null && _paletteIndex > 0 && _paletteIndex < _palette.Length)
+                    {
+                        _palette[_paletteIndex] = _colorValue;
+                    }
                     DrawView();
                     break;
             }
@@ -62,9 +74,11 @@ public class TColorDisplay : TView
     /// <summary>
     /// Sets the color from a palette entry and broadcasts the change.
     /// </summary>
-    public void SetColor(byte colorValue)
+    public void SetColor(TPalette palette, int paletteIndex)
     {
-        _colorValue = colorValue;
+        _palette = palette;
+        _paletteIndex = paletteIndex;
+        _colorValue = (paletteIndex >= 0 && paletteIndex < palette.Length) ? (byte)palette[paletteIndex] : (byte)0;
         SendMessage(Owner, EventConstants.evBroadcast, ColorCommands.cmColorSet, (int)_colorValue);
         DrawView();
     }

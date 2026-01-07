@@ -105,7 +105,8 @@ public class TColorDialog : TDialog
             int infoInt = ev.Message.InfoInt;
             if (Pal != null && infoInt >= 0 && infoInt < Pal.Data.Length)
             {
-                _display.SetColor(Pal.Data[infoInt]);
+                // Pass palette reference and index so color changes can be written back
+                _display.SetColor(Pal, infoInt);
             }
         }
     }
@@ -148,7 +149,8 @@ public class TColorDialog : TDialog
         byte index = _groups.GetGroupIndex(_groupIndex);
         if (Pal != null && index < Pal.Data.Length)
         {
-            _display.SetColor(Pal.Data[index]);
+            // Pass palette reference and index so color changes can be written back
+            _display.SetColor(Pal, index);
         }
         _groups.FocusItem(_groupIndex);
 
