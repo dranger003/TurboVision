@@ -2,7 +2,7 @@
 
 .NET 10 C# port of Turbo Vision 2.0 written entirely by Claude. A nostalgic practical experiment and learning exercise using CC.
 
-<img width="979" height="544" alt="{5C13A39C-B959-4EA2-8D7F-388884EFB819}" src="https://github.com/user-attachments/assets/100a783b-92bc-475d-999b-82bc8630bbbb" />
+<img width="964" height="531" alt="image" src="https://github.com/user-attachments/assets/c05b6e75-76b8-478c-8d22-7d911229a7fd" />
 
 ## Acknowledgments
 
