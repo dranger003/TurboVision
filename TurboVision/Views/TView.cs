@@ -696,6 +696,7 @@ public class TView : TObject, IStreamable
     public void SetCursor(int x, int y)
     {
         Cursor = new TPoint(x, y);
+        DrawCursor();
     }
 
     public void ShowCursor()
