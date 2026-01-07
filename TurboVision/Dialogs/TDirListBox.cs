@@ -219,8 +219,9 @@ public class TDirListBox : TListBox
             string dirName = curDir.Substring(0, sepIndex);
 
             // Build indented display string
+            // Use full PathDir (└─┬) to show there are children below this node
             string indentStr = new string(' ', indent);
-            string displayText = indentStr + PathDir.Substring(0, 2) + dirName;
+            string displayText = indentStr + PathDir + dirName;
 
             // Calculate the path up to this point
             int pathEnd = _dir.Length - curDir.Length + sepIndex + 1;
@@ -259,12 +260,12 @@ public class TDirListBox : TListBox
                 string prefix;
                 if (isFirst)
                 {
-                    prefix = FirstDir.Substring(0, 2);
+                    prefix = FirstDir;
                     isFirst = false;
                 }
                 else
                 {
-                    prefix = MiddleDir.Substring(0, 2);
+                    prefix = MiddleDir;
                 }
 
                 string indentStr = new string(' ', indent);

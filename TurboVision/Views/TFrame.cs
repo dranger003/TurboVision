@@ -49,7 +49,7 @@ public class TFrame : TView
     // Upstream: closeIcon = "[~\xFE~]", zoomIcon = "[~\x18~]", etc.
     public static string CloseIcon { get; set; } = "[~■~]";
     public static string ZoomIcon { get; set; } = "[~↑~]";
-    public static string UnZoomIcon { get; set; } = "[~↓~]";
+    public static string UnZoomIcon { get; set; } = "[~↕~]";
     public static string DragIcon { get; set; } = "~─┘~";
     public static string DragLeftIcon { get; set; } = "~└─~";
 

@@ -10,7 +10,8 @@ public class TColorSelector : TView
 {
     public enum ColorSel { csBackground, csForeground }
 
-    private const char Icon = '\u00DB'; // Full block character
+    private const char Icon = '\u2588'; // Full block character (█)
+    private const char Marker = '\u25D8'; // Inverse bullet marker (◘)
 
     public byte Color { get; protected set; }
     public ColorSel SelType { get; }
@@ -38,7 +39,7 @@ public class TColorSelector : TView
                     b.MoveChar(j * 3, Icon, new TColorAttr((byte)c), 3);
                     if (c == Color)
                     {
-                        b.PutChar(j * 3 + 1, (char)8); // Mark selected
+                        b.PutChar(j * 3 + 1, Marker); // Mark selected
                         if (c == 0)
                         {
                             b.PutAttribute(j * 3 + 1, new TColorAttr(0x70));

@@ -242,12 +242,14 @@ public class TWindow : TGroup
         SizeLimits(out _, out var maxSize);
         if (Size.X != maxSize.X || Size.Y != maxSize.Y)
         {
+            // Currently not at max size - zoom to max
             ZoomRect = GetBounds();
             var r = new TRect(0, 0, maxSize.X, maxSize.Y);
             Locate(ref r);
         }
         else
         {
+            // Currently at max size - restore to ZoomRect
             var r = ZoomRect;
             Locate(ref r);
         }
