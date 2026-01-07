@@ -71,10 +71,7 @@ public class THistory : TView
              (Link.State & StateFlags.sfFocused) != 0))
         {
             // Record current input line content before showing history
-            if (Link != null && !string.IsNullOrEmpty(Link.Data))
-            {
-                THistoryList.HistoryAdd(HistoryId, Link.Data);
-            }
+            RecordHistory(Link?.Data ?? "");
 
             // Show the history window
             ushort result = ShowHistoryWindow();
@@ -86,12 +83,16 @@ public class THistory : TView
             }
             ClearEvent(ref ev);
         }
-        else if (ev.What == EventConstants.evBroadcast &&
-                 ev.Message.Command == CommandConstants.cmRecordHistory &&
-                 ev.Message.InfoPtr == Link)
+        else if (ev.What == EventConstants.evBroadcast)
         {
-            RecordHistory(Link?.Data ?? "");
-            ClearEvent(ref ev);
+            // Handle cmReleasedFocus (when link loses focus) or cmRecordHistory
+            if ((ev.Message.Command == CommandConstants.cmReleasedFocus &&
+                 ReferenceEquals(ev.Message.InfoPtr, Link)) ||
+                ev.Message.Command == CommandConstants.cmRecordHistory)
+            {
+                RecordHistory(Link?.Data ?? "");
+                // Note: upstream doesn't clear event for broadcasts
+            }
         }
     }
 
@@ -102,48 +103,30 @@ public class THistory : TView
             return CommandConstants.cmCancel;
         }
 
-        // Calculate position for the history dropdown
-        var linkGlobal = Link.Owner?.MakeGlobal(Link.Origin) ?? Link.Origin;
-        int w = Math.Max(Link.Size.X + Size.X + 1, 20);
-        int h = Math.Min(THistoryList.HistoryCount(HistoryId) + 2, 8);
-        if (h < 4) h = 4;
-
-        var r = new TRect(linkGlobal.X, linkGlobal.Y + 1, linkGlobal.X + w, linkGlobal.Y + 1 + h);
-
-        // Ensure the window doesn't go off screen
-        TView? topView = Owner.TopView();
-        if (topView?.Owner != null)
-        {
-            var desktop = topView.Owner;
-            if (r.B.X > desktop.Size.X)
-            {
-                r.Move(desktop.Size.X - r.B.X, 0);
-            }
-            if (r.B.Y > desktop.Size.Y)
-            {
-                r.Move(0, -(h + Link.Size.Y));
-            }
-            if (r.A.X < 0)
-            {
-                r.Move(-r.A.X, 0);
-            }
-            if (r.A.Y < 0)
-            {
-                r.Move(0, -r.A.Y);
-            }
-        }
-
-        var histWin = new THistoryWindow(r, HistoryId);
-
-        // Find the desktop/application to execute the window
-        TGroup? deskTop = FindDesktop();
-        if (deskTop == null)
+        // Try to focus the link first (like upstream)
+        if (!Link.Focus())
         {
             return CommandConstants.cmCancel;
         }
 
-        // Execute the window modally
-        ushort result = deskTop.ExecView(histWin);
+        // Calculate position for the history dropdown (matching upstream thistory.cpp)
+        // Use link's bounds relative to its owner
+        var r = Link.GetBounds();
+        r = new TRect(r.A.X - 1, r.A.Y - 1, r.B.X + 1, r.B.Y + 7);
+
+        // Clip to owner's extent
+        var ownerExtent = Owner.GetExtent();
+        r = r.Intersect(ownerExtent);
+        r = new TRect(r.A.X, r.A.Y, r.B.X, r.B.Y - 1);
+
+        var histWin = InitHistoryWindow(r);
+        if (histWin == null)
+        {
+            return CommandConstants.cmCancel;
+        }
+
+        // Execute the window modally in the owner (like upstream)
+        ushort result = Owner.ExecView(histWin);
 
         if (result == CommandConstants.cmOK && histWin.Viewer != null)
         {
@@ -162,23 +145,14 @@ public class THistory : TView
         return result;
     }
 
-    private TGroup? FindDesktop()
+    protected virtual THistoryWindow? InitHistoryWindow(TRect bounds)
     {
-        // Walk up the owner chain to find the desktop
-        TView? v = Owner;
-        while (v != null)
+        var histWin = new THistoryWindow(bounds, HistoryId);
+        if (Link != null)
         {
-            if (v is TDeskTop desktop)
-            {
-                return desktop;
-            }
-            if (v.Owner == null && v is TGroup group)
-            {
-                return group;
-            }
-            v = v.Owner;
+            histWin.HelpCtx = Link.HelpCtx;
         }
-        return null;
+        return histWin;
     }
 
     public virtual void RecordHistory(string s)
