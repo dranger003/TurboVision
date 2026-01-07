@@ -51,7 +51,8 @@ public class TScrollBar : TView
             GrowMode = GrowFlags.gfGrowLoY | GrowFlags.gfGrowHiX | GrowFlags.gfGrowHiY;
         }
 
-        Options |= OptionFlags.ofPostProcess;
+        // Note: ofPostProcess is NOT set by default (matching upstream).
+        // It can be enabled via StandardScrollBar with sbHandleKeyboard flag.
         EventMask |= EventConstants.evMouseWheel;
     }
 
