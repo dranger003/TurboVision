@@ -74,7 +74,7 @@ public class TMenuPopup : TMenuBox
                 // Generate evCommand event with the selected command
                 ev.What = EventConstants.evCommand;
                 ev.Message.Command = p.Command;
-                ev.Message.InfoPtr = 0;
+                ev.Message.InfoPtr = null;
                 PutEvent(ev);
                 ClearEvent(ref ev);
             }

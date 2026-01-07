@@ -460,7 +460,7 @@ public class TMenuView : TView
                         {
                             ev.What = EventConstants.evCommand;
                             ev.Message.Command = p.Command;
-                            ev.Message.InfoPtr = 0;
+                            ev.Message.InfoPtr = null;
                             PutEvent(ev);
                             ClearEvent(ref ev);
                         }
@@ -677,7 +677,7 @@ public class TMenuView : TView
             if (ev.Message.Command != 0 && CommandEnabled(ev.Message.Command))
             {
                 ev.What = EventConstants.evCommand;
-                ev.Message.InfoPtr = 0;
+                ev.Message.InfoPtr = null;
                 PutEvent(ev);
             }
         }

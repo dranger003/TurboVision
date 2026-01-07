@@ -187,7 +187,8 @@ public class TMenuBox : TMenuView
 
         if (p != null)
         {
-            return new TRect(1, y, Size.X - 1, y + 1);
+            // Match upstream: TRect(2, y, size.x-2, y+1)
+            return new TRect(2, y, Size.X - 2, y + 1);
         }
 
         return new TRect();
