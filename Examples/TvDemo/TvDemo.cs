@@ -180,10 +180,10 @@ public class TVDemo : TApplication
         var aboutBox = new TDialog(new TRect(0, 0, 39, 13), "About");
 
         aboutBox.Insert(new TStaticText(new TRect(9, 2, 30, 9),
-            "\x03Turbo Vision Demo\n\n" +
-            "\x03C# Version\n\n" +
-            "\x03Ported from\n\n" +
-            "\x03Borland International"));
+            "\u0003Turbo Vision Demo\n\n" +
+            "\u0003C# Version\n\n" +
+            "\u0003Ported from\n\n" +
+            "\u0003Borland International"));
 
         aboutBox.Insert(new TButton(new TRect(14, 10, 26, 12), " OK",
             CommandConstants.cmOK, CommandConstants.bfDefault));
