@@ -368,11 +368,11 @@ public class TButton : TView
 
         if ((Flags & CommandConstants.bfBroadcast) != 0)
         {
-            Message(Owner, EventConstants.evBroadcast, Command, 0);
+            Message(Owner, EventConstants.evBroadcast, Command, this);
         }
         else
         {
-            TEvent ev = TEvent.Command(Command);
+            TEvent ev = TEvent.Command(Command, this);
             PutEvent(ev);
         }
     }
