@@ -4,82 +4,59 @@ using TurboVision.Views;
 
 namespace TurboVision.Editors;
 
+// =============================================================================
+// TTextDevice class
+// Upstream: textview.h lines 37-56, textview.cpp lines 28-55
+// =============================================================================
+
 /// <summary>
 /// Abstract base class for text output devices.
 /// Provides stream-like output capabilities to a TScroller view.
+/// Matches upstream TTextDevice (inherits from TScroller and streambuf).
 /// </summary>
-public abstract class TTextDevice : TScroller
+public abstract class TTextDevice(TRect bounds, TScrollBar? aHScrollBar, TScrollBar? aVScrollBar) : TScroller(bounds, aHScrollBar, aVScrollBar)
 {
-    protected TTextDevice(TRect bounds, TScrollBar? hScrollBar, TScrollBar? vScrollBar)
-        : base(bounds, hScrollBar, vScrollBar)
-    {
-    }
 
     /// <summary>
     /// Writes a string of characters to the device.
     /// Must be implemented by derived classes.
+    /// Upstream: virtual int do_sputn(const char *s, int count) = 0;
     /// </summary>
-    public abstract int DoSputn(ReadOnlySpan<char> s);
+    public abstract int DoSputn(ReadOnlySpan<char> s, int count);
 
     /// <summary>
     /// Writes a single character to the device.
+    /// Upstream: virtual int overflow(int = EOF);
     /// </summary>
     public virtual int Overflow(int c)
     {
         if (c >= 0)
         {
-            Span<char> buf = stackalloc char[1];
-            buf[0] = (char)c;
-            DoSputn(buf);
+            Span<char> buf = [(char)c];
+            DoSputn(buf, 1);
         }
         return 1;
-    }
-
-    /// <summary>
-    /// Writes a string to the device.
-    /// </summary>
-    public void Write(string s)
-    {
-        if (!string.IsNullOrEmpty(s))
-        {
-            DoSputn(s.AsSpan());
-        }
-    }
-
-    /// <summary>
-    /// Writes a line to the device (with newline).
-    /// </summary>
-    public void WriteLine(string s)
-    {
-        Write(s);
-        Write("\n");
     }
 }
 
 /// <summary>
 /// TextWriter wrapper for TTextDevice that allows using standard .NET I/O patterns.
+/// This is a C# convenience class not present in the upstream C++ code.
 /// </summary>
-public class TTextDeviceWriter : TextWriter
+public class TTextDeviceWriter(TTextDevice device) : TextWriter
 {
-    private readonly TTextDevice _device;
-
-    public TTextDeviceWriter(TTextDevice device)
-    {
-        _device = device;
-    }
-
     public override System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
 
     public override void Write(char value)
     {
-        _device.Overflow(value);
+        device.Overflow(value);
     }
 
     public override void Write(char[] buffer, int index, int count)
     {
         if (buffer != null && count > 0)
         {
-            _device.DoSputn(buffer.AsSpan(index, count));
+            device.DoSputn(buffer.AsSpan(index, count), count);
         }
     }
 
@@ -87,7 +64,7 @@ public class TTextDeviceWriter : TextWriter
     {
         if (!string.IsNullOrEmpty(value))
         {
-            _device.DoSputn(value.AsSpan());
+            device.DoSputn(value.AsSpan(), value.Length);
         }
     }
 }

@@ -3,38 +3,36 @@ using TurboVision.Views;
 
 namespace TurboVision.Editors;
 
+// =============================================================================
+// TTerminal class
+// Upstream: textview.h lines 66-95, textview.cpp lines 57-245
+// =============================================================================
+
 /// <summary>
 /// Terminal view that displays text output in a scrollable buffer.
 /// Uses a circular buffer to efficiently manage text history.
+/// Matches upstream TTerminal (textview.h lines 66-95).
 /// </summary>
 public class TTerminal : TTextDevice
 {
-    /// <summary>
-    /// Size of the circular buffer.
-    /// </summary>
-    protected ushort BufSize { get; private set; }
+    #region Fields (textview.h lines 91-93)
 
-    /// <summary>
-    /// The circular buffer storing terminal output.
-    /// </summary>
-    protected char[]? Buffer { get; private set; }
+    protected ushort bufSize;
+    protected char[]? buffer;
+    protected ushort queFront, queBack;
 
-    /// <summary>
-    /// Front of the queue (where new data is written).
-    /// </summary>
-    protected ushort QueFront { get; set; }
+    #endregion
 
-    /// <summary>
-    /// Back of the queue (oldest data).
-    /// </summary>
-    protected ushort QueBack { get; set; }
+    #region Constructor and Destructor (textview.cpp lines 57-77)
 
-    public TTerminal(TRect bounds, TScrollBar? hScrollBar, TScrollBar? vScrollBar, ushort bufSize)
-        : base(bounds, hScrollBar, vScrollBar)
+    public TTerminal(TRect bounds, TScrollBar? aHScrollBar, TScrollBar? aVScrollBar, ushort aBufSize)
+        : base(bounds, aHScrollBar, aVScrollBar)
     {
-        GrowMode = GrowFlags.gfGrowHiX | GrowFlags.gfGrowHiY;
-        BufSize = Math.Min((ushort)32000, bufSize);
-        Buffer = new char[BufSize];
+        queFront = 0;
+        queBack = 0;
+        GrowMode = GrowFlags.gfGrowHiX + GrowFlags.gfGrowHiY;
+        bufSize = Math.Min((ushort)32000, aBufSize);
+        buffer = new char[bufSize];
         SetLimit(0, 1);
         SetCursor(0, 0);
         ShowCursor();
@@ -44,10 +42,14 @@ public class TTerminal : TTextDevice
     {
         if (disposing)
         {
-            Buffer = null;
+            buffer = null;
         }
         base.Dispose(disposing);
     }
+
+    #endregion
+
+    #region Protected Methods (textview.h line 94, textview.cpp lines 79-85)
 
     /// <summary>
     /// Decrements a buffer position, wrapping around if necessary.
@@ -55,55 +57,61 @@ public class TTerminal : TTextDevice
     protected void BufDec(ref ushort val)
     {
         if (val == 0)
-            val = (ushort)(BufSize - 1);
+            val = (ushort)(bufSize - 1);
         else
             val--;
     }
 
+    #endregion
+
+    #region Public Methods (textview.h lines 82-87)
+
     /// <summary>
     /// Increments a buffer position, wrapping around if necessary.
+    /// Upstream: textview.h line 82 (public method)
     /// </summary>
-    protected void BufInc(ref ushort val)
+    public void BufInc(ref ushort val)
     {
-        if (++val >= BufSize)
+        if (++val >= bufSize)
             val = 0;
     }
 
     /// <summary>
     /// Checks if there's enough room in the buffer for the specified amount of data.
+    /// Upstream: textview.h line 83 (public method)
     /// </summary>
-    protected bool CanInsert(ushort amount)
+    public bool CanInsert(ushort amount)
     {
-        long t = QueFront < QueBack
-            ? QueFront + amount
-            : (long)QueFront - BufSize + amount;
-        return QueBack > t;
+        long T = queFront < queBack
+            ? queFront + amount
+            : (long)queFront - bufSize + amount;
+        return queBack > T;
     }
 
+    // Upstream: textview.cpp lines 117-186
     public override void Draw()
     {
-        var buf = new TDrawBuffer();
-        var color = MapColor(1);
-        ushort endLine;
-        ushort bottomLine = (ushort)(Size.Y + Delta.Y);
+        TDrawBuffer b;
+        char[] s = new char[256];
+        int sLen;
+        int x, y;
+        ushort begLine, endLine, linePos;
+        ushort bottomLine;
+        TColorAttr color = MapColor(1);
 
         SetCursor(-1, -1);
 
+        bottomLine = (ushort)(Size.Y + Delta.Y);
         if (Limit.Y > bottomLine)
         {
-            endLine = PrevLines(QueFront, (ushort)(Limit.Y - bottomLine));
+            endLine = PrevLines(queFront, (ushort)(Limit.Y - bottomLine));
             BufDec(ref endLine);
         }
         else
-        {
-            endLine = QueFront;
-        }
+            endLine = queFront;
 
-        int y;
         if (Limit.Y > Size.Y)
-        {
             y = Size.Y - 1;
-        }
         else
         {
             for (y = Limit.Y; y < Size.Y; y++)
@@ -111,91 +119,119 @@ public class TTerminal : TTextDevice
             y = Limit.Y - 1;
         }
 
+        b = new TDrawBuffer();
         for (; y >= 0; y--)
         {
-            int x = 0;
-            ushort begLine = PrevLines(endLine, 1);
-            ushort linePos = begLine;
-
+            x = 0;
+            begLine = PrevLines(endLine, 1);
+            linePos = begLine;
             while (linePos != endLine)
             {
-                int copyLen;
                 if (endLine >= linePos)
                 {
-                    copyLen = Math.Min(endLine - linePos, Size.X - x);
-                    for (int i = 0; i < copyLen && linePos + i < BufSize; i++)
-                    {
-                        buf.Data[x + i] = new TScreenCell(Buffer![linePos + i], color);
-                    }
+                    int cpyLen = Math.Min(endLine - linePos, s.Length);
+                    Array.Copy(buffer!, linePos, s, 0, cpyLen);
+                    sLen = cpyLen;
                 }
                 else
                 {
-                    // Wrapping case
-                    int firstPart = Math.Min(BufSize - linePos, Size.X - x);
-                    for (int i = 0; i < firstPart; i++)
-                    {
-                        buf.Data[x + i] = new TScreenCell(Buffer![linePos + i], color);
-                    }
-                    int secondPart = Math.Min(endLine, Size.X - x - firstPart);
-                    for (int i = 0; i < secondPart; i++)
-                    {
-                        buf.Data[x + firstPart + i] = new TScreenCell(Buffer![i], color);
-                    }
-                    copyLen = firstPart + secondPart;
+                    int fstCpyLen = Math.Min(bufSize - linePos, s.Length);
+                    int sndCpyLen = Math.Min(endLine, s.Length - fstCpyLen);
+                    Array.Copy(buffer!, linePos, s, 0, fstCpyLen);
+                    Array.Copy(buffer!, 0, s, fstCpyLen, sndCpyLen);
+                    sLen = fstCpyLen + sndCpyLen;
                 }
 
-                x += copyLen;
-
-                // Update linePos
-                if (linePos + copyLen >= BufSize)
-                    linePos = (ushort)(copyLen - (BufSize - linePos));
+                DiscardPossiblyTruncatedCharsAtEnd(s, ref sLen);
+                if (linePos >= bufSize - sLen)
+                    linePos = (ushort)(sLen - (bufSize - linePos));
                 else
-                    linePos += (ushort)copyLen;
+                    linePos += (ushort)sLen;
+
+                x += b.MoveStr(x, s.AsSpan(0, sLen), color);
             }
 
-            // Fill rest of line with spaces
-            for (int i = x; i < Size.X; i++)
-            {
-                buf.Data[i] = new TScreenCell(' ', color);
-            }
-
-            WriteBuf(0, y, Size.X, 1, buf);
-
-            // Draw cursor on last line
-            if (endLine == QueFront)
+            b.MoveChar(x, ' ', color, Math.Max(Size.X - x, 0));
+            WriteBuf(0, y, Size.X, 1, b);
+            // Draw the cursor when this is the last line.
+            if (endLine == queFront)
                 SetCursor(x, y);
-
             endLine = begLine;
             BufDec(ref endLine);
         }
     }
 
+    // Helper method for multibyte character handling
+    // Pre: sLen <= 256
+    // Post: sLen adjusted to not truncate multibyte chars
+    // Upstream: textview.cpp lines 102-115
+    private static void DiscardPossiblyTruncatedCharsAtEnd(char[] s, ref int sLen)
+    {
+        // In C# with UTF-16, surrogate pairs are 2 char units
+        // Check if we're cutting in the middle of a surrogate pair
+        if (sLen == s.Length && sLen > 0)
+        {
+            // Scan backwards to find a safe break point
+            int safeLen = 0;
+            for (int i = 0; i < sLen; i++)
+            {
+                if (char.IsHighSurrogate(s[i]))
+                {
+                    // If there's room for the low surrogate, include both
+                    if (i + 1 < sLen && char.IsLowSurrogate(s[i + 1]))
+                    {
+                        safeLen = i + 2;
+                        i++; // Skip the low surrogate
+                    }
+                    else
+                    {
+                        // High surrogate at end, truncate it
+                        break;
+                    }
+                }
+                else if (!char.IsLowSurrogate(s[i]))
+                {
+                    // Regular character
+                    safeLen = i + 1;
+                }
+                // else: orphaned low surrogate, don't advance safeLen
+            }
+            sLen = safeLen;
+        }
+    }
+
     /// <summary>
     /// Finds the position after the next newline character.
+    /// Upstream: textview.h line 85 (public method)
     /// </summary>
-    protected ushort NextLine(ushort pos)
+    public ushort NextLine(ushort pos)
     {
-        while (pos != QueFront && Buffer![pos] != '\n')
+        while (pos != queFront && buffer![pos] != '\n')
             BufInc(ref pos);
-        if (pos != QueFront)
+        if (pos != queFront)
             BufInc(ref pos);
         return pos;
     }
 
+    #endregion
+
+    #region Line Navigation - From ttprvlns.cpp (lines 18-47)
+
     /// <summary>
     /// Finds the position of the start of the line 'lines' lines before 'pos'.
+    /// Upstream: textview.h line 86 (public method), ttprvlns.cpp lines 31-47
     /// </summary>
-    protected ushort PrevLines(ushort pos, ushort lines)
+    public ushort PrevLines(ushort pos, ushort lines)
     {
-        if (lines > 0 && pos != QueBack)
+        if (lines > 0 && pos != queBack)
         {
             do
             {
-                if (pos == QueBack)
-                    return QueBack;
+                if (pos == queBack)
+                    return queBack;
                 BufDec(ref pos);
-                ushort count = (ushort)((pos >= QueBack ? pos - QueBack : pos) + 1);
-                if (FindLfBackwards(pos, count))
+                ushort count = (ushort)((pos >= queBack ? pos - queBack : pos) + 1);
+                if (FindLfBackwards(buffer!, ref pos, count))
                     lines--;
             } while (lines > 0);
             BufInc(ref pos);
@@ -203,63 +239,58 @@ public class TTerminal : TTextDevice
         return pos;
     }
 
-    /// <summary>
-    /// Searches backwards for a newline character.
-    /// </summary>
-    private bool FindLfBackwards(ushort pos, ushort count)
+    // Pre: count >= 1.
+    // Post: 'pos' points to the last checked character.
+    // Upstream: ttprvlns.cpp lines 18-29 (static function)
+    private static bool FindLfBackwards(char[] buffer, ref ushort pos, ushort count)
     {
-        pos++;
+        ++pos;
         do
         {
-            pos--;
-            if (Buffer![pos] == '\n')
+            if (buffer[--pos] == '\n')
                 return true;
         } while (--count > 0);
         return false;
     }
 
-    public override int DoSputn(ReadOnlySpan<char> s)
-    {
-        int count = s.Length;
-        int screenLines = Limit.Y;
+    #endregion
 
-        // If data is larger than buffer, truncate from start
-        if (count > BufSize - 1)
+    public override int DoSputn(ReadOnlySpan<char> s, int count)
+    {
+        ushort screenLines = (ushort)Limit.Y;
+        ushort i;
+
+        if (count > bufSize - 1)
         {
-            s = s.Slice(count - (BufSize - 1));
-            count = BufSize - 1;
+            s = s[(count - (bufSize - 1))..];
+            count = bufSize - 1;
         }
 
-        // Count newlines in input
-        for (int i = 0; i < count; i++)
-        {
+        for (i = 0; i < count; i++)
             if (s[i] == '\n')
                 screenLines++;
-        }
 
-        // Make room by discarding old lines if necessary
         while (!CanInsert((ushort)count))
         {
-            QueBack = NextLine(QueBack);
+            queBack = NextLine(queBack);
             if (screenLines > 1)
                 screenLines--;
         }
 
-        // Copy data to buffer
-        if (QueFront + count >= BufSize)
+        if (queFront + count >= bufSize)
         {
-            int firstPart = BufSize - QueFront;
-            s.Slice(0, firstPart).CopyTo(Buffer.AsSpan(QueFront));
-            s.Slice(firstPart, count - firstPart).CopyTo(Buffer.AsSpan(0));
-            QueFront = (ushort)(count - firstPart);
+            i = (ushort)(bufSize - queFront);
+            s[..i].CopyTo(buffer.AsSpan(queFront));
+            s[i..count].CopyTo(buffer.AsSpan(0));
+            queFront = (ushort)(count - i);
         }
         else
         {
-            s.Slice(0, count).CopyTo(Buffer.AsSpan(QueFront));
-            QueFront += (ushort)count;
+            s[..count].CopyTo(buffer.AsSpan(queFront));
+            queFront += (ushort)count;
         }
 
-        // Update display
+        // drawLock: avoid redundant calls to drawView()
         DrawLock++;
         SetLimit(Limit.X, screenLines);
         ScrollTo(0, screenLines + 1);
@@ -274,6 +305,43 @@ public class TTerminal : TTextDevice
     /// </summary>
     public bool QueEmpty()
     {
-        return QueBack == QueFront;
+        return queBack == queFront;
+    }
+}
+
+// =============================================================================
+// OTStream class
+// Upstream: textview.h lines 111-118, textview.cpp lines 247-250
+// =============================================================================
+
+/// <summary>
+/// Output stream wrapper for TTerminal.
+/// Matches upstream otstream class (textview.h lines 111-118).
+/// In C++, this inherits from ostream to enable stream operators.
+/// In C#, this wraps TTerminal with TextWriter for similar functionality.
+/// </summary>
+public class OTStream(TTerminal terminal) : System.IO.TextWriter
+{
+    public override System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
+
+    public override void Write(char value)
+    {
+        terminal.Overflow(value);
+    }
+
+    public override void Write(char[] buffer, int index, int count)
+    {
+        if (buffer != null && count > 0)
+        {
+            terminal.DoSputn(buffer.AsSpan(index, count), count);
+        }
+    }
+
+    public override void Write(string? value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            terminal.DoSputn(value.AsSpan(), value.Length);
+        }
     }
 }

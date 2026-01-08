@@ -61,7 +61,8 @@ public class TEventViewer : TWindow
     {
         if (ev.What != EventConstants.evNothing && !_stopped && _interior != null)
         {
-            _interior.WriteLine($"Received event #{++_eventCount}");
+            var msg = $"Received event #{++_eventCount}\n";
+            _interior.DoSputn(msg.AsSpan(), msg.Length);
             PrintEvent(_interior, ref ev);
         }
     }
@@ -106,7 +107,8 @@ public class TEventViewer : TWindow
 
         sb.AppendLine("}");
 
-        terminal.Write(sb.ToString());
+        var output = sb.ToString();
+        terminal.DoSputn(output.AsSpan(), output.Length);
     }
 
     public override void HandleEvent(ref TEvent ev)
