@@ -330,7 +330,7 @@ Text editor is substantially implemented with gap buffer algorithm.
 | TEditWindow | Editors/TEditWindow.cs | 90% | ~150 | Editor window container |
 | TIndicator | Editors/TIndicator.cs | 90% | ~150 | Line:column display |
 | TTextDevice | Editors/TTextDevice.cs | 85% | ~100 | Terminal emulation base |
-| TTerminal | Editors/TTerminal.cs | 85% | ~200 | Terminal view with circular buffer |
+| TTerminal | Editors/TTerminal.cs | 100% | ~350 | Terminal view - Line-by-line match with upstream textview.cpp/ttprvlns.cpp, includes OTStream class |
 | EditorConstants | Editors/EditorConstants.cs | Complete | ~100 | Command constants |
 
 **TEditor Features Implemented:**

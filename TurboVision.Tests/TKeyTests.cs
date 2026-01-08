@@ -18,14 +18,13 @@ public class TKeyTests
     private const ushort kbCtrlTab = 0x9400;
     private const ushort kbCtrlEnter = 0x1C0A;
 
-    // Modifier key constants (BIOS-style, matching upstream tvision)
-    // Note: kbShift uses 0x0010 for compatibility with Windows SHIFT_PRESSED
-    private const ushort kbShift = 0x0010;
-    // In BIOS mode, Left/Right Ctrl/Alt have the same values as the generic shift flags
-    private const ushort kbLeftCtrl = 0x0004;   // Same as kbCtrlShift in BIOS mode
-    private const ushort kbRightCtrl = 0x0004;  // Same as kbCtrlShift in BIOS mode
-    private const ushort kbLeftAlt = 0x0008;    // Same as kbAltShift in BIOS mode
-    private const ushort kbRightAlt = 0x0008;   // Same as kbAltShift in BIOS mode
+    // Modifier key constants (Windows-style, matching upstream tvision __FLAT__ mode)
+    // These use the production constants from KeyConstants.cs, which match Windows console API
+    private const ushort kbShift = KeyConstants.kbShift;         // 0x0010
+    private const ushort kbLeftCtrl = KeyConstants.kbLeftCtrl;   // 0x0008
+    private const ushort kbRightCtrl = KeyConstants.kbRightCtrl; // 0x0004
+    private const ushort kbLeftAlt = KeyConstants.kbLeftAlt;     // 0x0002
+    private const ushort kbRightAlt = KeyConstants.kbRightAlt;   // 0x0001
 
     // Additional BIOS-style key codes referenced in tests
     private const ushort kb0 = 0x0B30;   // BIOS scan code for '0'
