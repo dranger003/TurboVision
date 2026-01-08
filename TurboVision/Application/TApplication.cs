@@ -10,7 +10,7 @@ namespace TurboVision.Application;
 /// </summary>
 public class TApplication : TProgram
 {
-    private static Win32ConsoleDriver? _driver;
+    private static Win32ConsoleAdapter? _driver;
 
     public TApplication() : base()
     {
@@ -24,7 +24,7 @@ public class TApplication : TProgram
         // Create platform driver (Windows only for now)
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && _driver == null)
         {
-            _driver = new Win32ConsoleDriver();
+            _driver = Win32ConsoleAdapter.Create();
             TScreen.StartupCursor = _driver.GetCursorType();
             TScreen.Initialize(_driver);
             TEventQueue.Initialize(_driver);
