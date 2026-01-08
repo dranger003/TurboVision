@@ -218,33 +218,34 @@ public static class KeyConstants
     public const ushort kbShiftDel = 0x0700;
     public const ushort kbCtrlIns = 0x0400;
 
-    // Control+letter combinations (character codes 0x01-0x1A)
-    public const ushort kbCtrlA = 0x1E01;
-    public const ushort kbCtrlB = 0x3002;
-    public const ushort kbCtrlC = 0x2E03;
-    public const ushort kbCtrlD = 0x2004;
-    public const ushort kbCtrlE = 0x1205;
-    public const ushort kbCtrlF = 0x2106;
-    public const ushort kbCtrlG = 0x2207;
-    public const ushort kbCtrlH = 0x2308;
-    public const ushort kbCtrlI = 0x1709;
-    public const ushort kbCtrlJ = 0x240A;
-    public const ushort kbCtrlK = 0x250B;
-    public const ushort kbCtrlL = 0x260C;
-    public const ushort kbCtrlM = 0x320D;
-    public const ushort kbCtrlN = 0x310E;
-    public const ushort kbCtrlO = 0x180F;
-    public const ushort kbCtrlP = 0x1910;
-    public const ushort kbCtrlQ = 0x1011;
-    public const ushort kbCtrlR = 0x1312;
-    public const ushort kbCtrlS = 0x1F13;
-    public const ushort kbCtrlT = 0x1414;
-    public const ushort kbCtrlU = 0x1615;
-    public const ushort kbCtrlV = 0x2F16;
-    public const ushort kbCtrlW = 0x1117;
-    public const ushort kbCtrlX = 0x2D18;
-    public const ushort kbCtrlY = 0x1519;
-    public const ushort kbCtrlZ = 0x2C1A;
+    // Control+letter combinations (character codes only, no scan codes)
+    // Matches upstream tkeys.h lines 46-55
+    public const ushort kbCtrlA = 0x0001;
+    public const ushort kbCtrlB = 0x0002;
+    public const ushort kbCtrlC = 0x0003;
+    public const ushort kbCtrlD = 0x0004;
+    public const ushort kbCtrlE = 0x0005;
+    public const ushort kbCtrlF = 0x0006;
+    public const ushort kbCtrlG = 0x0007;
+    public const ushort kbCtrlH = 0x0008;
+    public const ushort kbCtrlI = 0x0009;
+    public const ushort kbCtrlJ = 0x000A;
+    public const ushort kbCtrlK = 0x000B;
+    public const ushort kbCtrlL = 0x000C;
+    public const ushort kbCtrlM = 0x000D;
+    public const ushort kbCtrlN = 0x000E;
+    public const ushort kbCtrlO = 0x000F;
+    public const ushort kbCtrlP = 0x0010;
+    public const ushort kbCtrlQ = 0x0011;
+    public const ushort kbCtrlR = 0x0012;
+    public const ushort kbCtrlS = 0x0013;
+    public const ushort kbCtrlT = 0x0014;
+    public const ushort kbCtrlU = 0x0015;
+    public const ushort kbCtrlV = 0x0016;
+    public const ushort kbCtrlW = 0x0017;
+    public const ushort kbCtrlX = 0x0018;
+    public const ushort kbCtrlY = 0x0019;
+    public const ushort kbCtrlZ = 0x001A;
 
     // Paste indicator flag (used in ControlKeyState)
     public const ushort kbPaste = 0x8000;
@@ -362,14 +363,21 @@ public static class KeyConstants
     public const ushort kbCtrlF10 = 0x6700;
 
     // Control key state masks
-    public const ushort kbRightShift = 0x0001;
-    public const ushort kbLeftShift = 0x0002;
-    public const ushort kbCtrlShift = 0x0004;
-    public const ushort kbAltShift = 0x0008;
-    public const ushort kbScrollState = 0x0010;
-    public const ushort kbNumState = 0x0020;
-    public const ushort kbCapsState = 0x0040;
-    public const ushort kbInsState = 0x0080;
+    // On Windows, these match the dwControlKeyState flags directly
+    // Matches upstream tkeys.h lines 140-151 (#else branch for __FLAT__)
+    public const ushort kbRightAlt = 0x0001;      // RIGHT_ALT_PRESSED
+    public const ushort kbLeftAlt = 0x0002;       // LEFT_ALT_PRESSED
+    public const ushort kbRightCtrl = 0x0004;     // RIGHT_CTRL_PRESSED
+    public const ushort kbLeftCtrl = 0x0008;      // LEFT_CTRL_PRESSED
+    public const ushort kbRightShift = kbShift;   // No distinction on Windows
+    public const ushort kbLeftShift = kbShift;    // No distinction on Windows
+    public const ushort kbCtrlShift = kbLeftCtrl | kbRightCtrl;  // 0x000C
+    public const ushort kbAltShift = kbLeftAlt | kbRightAlt;     // 0x0003
+    public const ushort kbNumState = 0x0020;      // NUMLOCK_ON
+    public const ushort kbScrollState = 0x0040;   // SCROLLLOCK_ON
+    public const ushort kbCapsState = 0x0080;     // CAPSLOCK_ON
+    public const ushort kbEnhanced = 0x0100;      // ENHANCED_KEY
+    public const ushort kbInsState = 0x0200;      // Custom, doesn't overlap Windows flags
 }
 
 /// <summary>
