@@ -357,9 +357,6 @@ public class TProgram : TGroup
 
     public virtual void Run()
     {
-        // Clear screen and trigger initial draw
-        TScreen.ClearScreen();
-        Redraw();
         Execute();
     }
 
