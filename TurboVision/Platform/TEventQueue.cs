@@ -246,9 +246,18 @@ public static class TEventQueue
 
     /// <summary>
     /// Waits for events for up to the specified timeout.
+    /// Matches upstream THardwareInfo::waitForEvents() in hardware.cpp.
+    /// Flushes the screen before waiting, ensuring all drawing is visible.
     /// </summary>
     public static void WaitForEvents(int timeoutMs)
     {
+        // Flush the screen once for every time all events have been processed,
+        // only when blocking for events.
+        // Matches upstream hardware.cpp THardwareInfo::waitForEvents() "if (!eventCount)"
+        if (!_hasPendingEvent)
+        {
+            TScreen.FlushScreen();
+        }
         _eventSource?.WaitForEvents(timeoutMs);
     }
 
