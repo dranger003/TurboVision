@@ -367,7 +367,7 @@ public class TView : TObject, IStreamable
     // State management
     public bool GetState(ushort aState)
     {
-        return (State & aState) != 0;
+        return (State & aState) == aState;
     }
 
     public virtual void SetState(ushort aState, bool enable)
