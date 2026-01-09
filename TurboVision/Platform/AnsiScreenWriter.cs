@@ -44,6 +44,16 @@ internal sealed class AnsiScreenWriter
         public void Clear() => _size = 0;
 
         public ReadOnlySpan<byte> Data => _data.AsSpan(0, _size);
+
+        public int Size => _size;
+
+        public byte LastByte => _size > 0 ? _data[_size - 1] : (byte)0;
+
+        public void RemoveLast(int count)
+        {
+            if (count > 0 && count <= _size)
+                _size -= count;
+        }
     }
 
     private readonly ConsoleCtl _con;
@@ -191,6 +201,145 @@ internal sealed class AnsiScreenWriter
         _buf.Push(digits[pos..]);
     }
 
+    // ========================================
+    // Color Conversion Functions
+    // Matches upstream ansiwrit.cpp:358-448
+    // ========================================
+
+    /// <summary>
+    /// Result of color conversion with potential extra style bits.
+    /// Matches upstream colorconv_r struct in ansiwrit.cpp:175-178
+    /// </summary>
+    private readonly struct ColorConvResult
+    {
+        public readonly TermColor Color;
+        public readonly ushort ExtraStyle;
+
+        public ColorConvResult(TermColor color, ushort extraStyle = 0)
+        {
+            Color = color;
+            ExtraStyle = extraStyle;
+        }
+    }
+
+    /// <summary>
+    /// Converts color to NoColor mode (monochrome emulation with styles).
+    /// Matches upstream convertNoColor() in ansiwrit.cpp:358-376
+    /// </summary>
+    private static ColorConvResult ConvertNoColor(byte biosColor, bool isFg)
+    {
+        ushort extraStyle = 0;
+        // Mimic the mono palettes with styles
+        if (isFg)
+        {
+            if ((biosColor & 0x8) != 0)
+                extraStyle |= 0x01; // slBold
+            else if (biosColor == 0x1)
+                extraStyle |= 0x02; // slUnderline
+        }
+        else if ((biosColor & 0x7) == 0x7)
+            extraStyle |= 0x10; // slReverse
+
+        return new ColorConvResult(TermColor.NoColor, extraStyle);
+    }
+
+    /// <summary>
+    /// Converts color to Indexed8 mode (with BoldIsBright/BlinkIsBright quirks).
+    /// Matches upstream convertIndexed8() in ansiwrit.cpp:378-398
+    /// </summary>
+    private ColorConvResult ConvertIndexed8(byte biosColor, bool isFg)
+    {
+        var cnv = ConvertIndexed16(biosColor, isFg);
+        if (cnv.Color.Type == TermColorType.Indexed && cnv.Color.Idx >= 8)
+        {
+            byte idx = (byte)(cnv.Color.Idx - 8);
+            ushort extraStyle = cnv.ExtraStyle;
+
+            if (isFg)
+            {
+                if ((_termcap.Quirks & TermQuirks.BoldIsBright) != 0)
+                    extraStyle |= 0x01; // slBold
+            }
+            else
+            {
+                if ((_termcap.Quirks & TermQuirks.BlinkIsBright) != 0)
+                    extraStyle |= 0x08; // slBlink
+            }
+
+            return new ColorConvResult(new TermColor(idx, TermColorType.Indexed), extraStyle);
+        }
+        return cnv;
+    }
+
+    /// <summary>
+    /// Converts color to Indexed16 mode (with downconversion from 256 or RGB).
+    /// Matches upstream convertIndexed16() in ansiwrit.cpp:400-421
+    /// </summary>
+    private static ColorConvResult ConvertIndexed16(byte biosColor, bool isFg)
+    {
+        // BIOS colors need bit swap
+        byte idx = ColorConversion.BIOStoXTerm16(biosColor);
+        return new ColorConvResult(new TermColor(idx, TermColorType.Indexed));
+    }
+
+    /// <summary>
+    /// Converts color to Indexed256 mode (with conversion from RGB).
+    /// Matches upstream convertIndexed256() in ansiwrit.cpp:423-437
+    /// </summary>
+    private static ColorConvResult ConvertIndexed256(byte biosColor, bool isFg)
+    {
+        // For BIOS colors, convert through 16-color
+        return ConvertIndexed16(biosColor, isFg);
+    }
+
+    /// <summary>
+    /// Converts color to Direct (24-bit RGB) mode.
+    /// Matches upstream convertDirect() in ansiwrit.cpp:439-448
+    /// </summary>
+    private static ColorConvResult ConvertDirect(byte biosColor, bool isFg)
+    {
+        // Convert BIOS color to XTerm16, then to RGB using palette
+        byte xtermColor = ColorConversion.BIOStoXTerm16(biosColor);
+
+        // Standard VGA color palette in XTerm16 order
+        ReadOnlySpan<uint> palette = stackalloc uint[16]
+        {
+            0x000000, 0xAA0000, 0x00AA00, 0xAA5500, // Black, Red, Green, Brown/Yellow
+            0x0000AA, 0xAA00AA, 0x00AAAA, 0xAAAAAA, // Blue, Magenta, Cyan, Light Gray
+            0x555555, 0xFF5555, 0x55FF55, 0xFFFF55, // Dark Gray, Light Red, Light Green, Yellow
+            0x5555FF, 0xFF55FF, 0x55FFFF, 0xFFFFFF  // Light Blue, Light Magenta, Light Cyan, White
+        };
+
+        uint rgb = palette[xtermColor & 0x0F];
+        byte r = (byte)((rgb >> 16) & 0xFF);
+        byte g = (byte)((rgb >> 8) & 0xFF);
+        byte b = (byte)(rgb & 0xFF);
+
+        return new ColorConvResult(new TermColor(r, g, b));
+    }
+
+    /// <summary>
+    /// Converts BIOS color based on terminal capabilities.
+    /// Dispatcher for the 5 color conversion functions above.
+    /// </summary>
+    private ColorConvResult ConvertColor(byte biosColor, bool isFg)
+    {
+        return _termcap.Colors switch
+        {
+            TermCapColors.NoColor => ConvertNoColor(biosColor, isFg),
+            TermCapColors.Indexed8 => ConvertIndexed8(biosColor, isFg),
+            TermCapColors.Indexed16 => ConvertIndexed16(biosColor, isFg),
+            TermCapColors.Indexed256 => ConvertIndexed256(biosColor, isFg),
+            TermCapColors.Direct => ConvertDirect(biosColor, isFg),
+            _ => new ColorConvResult(TermColor.Default)
+        };
+    }
+
+    // ========================================
+    // Attribute Conversion and Writing
+    // Matches upstream ansiwrit.cpp:173-298
+    // ========================================
+
     /// <summary>
     /// Converts TColorAttr to terminal attributes and generates SGR sequences.
     /// Matches upstream convertAttributes() in ansiwrit.cpp:173-192
@@ -201,10 +350,16 @@ internal sealed class AnsiScreenWriter
         ushort style = attr.Style;
 
         // Convert foreground - matches upstream convertColor(getFore(c), ...)
-        newAttr.Fg = ConvertColorDesired(attr.ForegroundColor, ref style, true);
+        byte fgBios = attr.ForegroundColor.ToBIOS(true);
+        var fgConv = ConvertColor(fgBios, true);
+        newAttr.Fg = fgConv.Color;
+        style |= fgConv.ExtraStyle;
 
         // Convert background - matches upstream convertColor(getBack(c), ...)
-        newAttr.Bg = ConvertColorDesired(attr.BackgroundColor, ref style, false);
+        byte bgBios = attr.BackgroundColor.ToBIOS(false);
+        var bgConv = ConvertColor(bgBios, false);
+        newAttr.Bg = bgConv.Color;
+        style |= bgConv.ExtraStyle;
 
         // Apply quirks (matches upstream lines 182-185)
         if ((_termcap.Quirks & TermQuirks.NoItalic) != 0)
@@ -221,100 +376,6 @@ internal sealed class AnsiScreenWriter
         // Generate SGR sequence (matches upstream line 187)
         WriteAttributes(newAttr, lastAttr);
         lastAttr = newAttr;
-    }
-
-    /// <summary>
-    /// Converts TColorDesired to TermColor.
-    /// Matches upstream convertColor() + convertIndexed16() in ansiwrit.cpp
-    /// </summary>
-    private TermColor ConvertColorDesired(TColorDesired color, ref ushort style, bool isForeground)
-    {
-        // Convert to BIOS color (quantization for RGB/XTerm)
-        byte biosColor = color.ToBIOS(isForeground);  // Implicit conversion
-        return ConvertBiosColor(biosColor, ref style, isForeground);
-    }
-
-    /// <summary>
-    /// Converts BIOS color (0-15) to XTerm16 by swapping Red and Blue bits.
-    /// Matches upstream BIOStoXTerm16() in colors.h
-    ///
-    /// BIOS colors: bit0=Blue, bit1=Green, bit2=Red, bit3=Bright
-    /// XTerm colors: bit0=Red, bit1=Green, bit2=Blue, bit3=Bright
-    /// </summary>
-    private static byte BiosToXTerm16(byte bios)
-    {
-        byte b = (byte)(bios & 0x1);  // Blue bit
-        byte g = (byte)(bios & 0x2);  // Green bit (unchanged)
-        byte r = (byte)(bios & 0x4);  // Red bit
-        byte bright = (byte)(bios & 0x8);  // Bright bit (unchanged)
-
-        // Swap Red and Blue: XTerm = (b→r) | g | (r→b) | bright
-        return (byte)((b << 2) | g | (r >> 2) | bright);
-    }
-
-    /// <summary>
-    /// Converts BIOS color (0-15) to TermColor based on terminal capabilities.
-    /// Matches upstream color conversion functions in ansiwrit.cpp
-    /// </summary>
-    private TermColor ConvertBiosColor(byte biosColor, ref ushort style, bool isForeground)
-    {
-        // Map based on terminal color capability
-        switch (_termcap.Colors)
-        {
-            case TermCapColors.Direct:
-                // 24-bit true color: convert BIOS color to RGB
-                // Note: RGB conversion also needs the bit swap
-                byte xterm = BiosToXTerm16(biosColor);
-                return ConvertXTermToRgb(xterm);
-
-            case TermCapColors.Indexed256:
-            case TermCapColors.Indexed16:
-                // Convert BIOS to XTerm16 (swap Red/Blue bits)
-                // Matches upstream convertIndexed16() calling BIOStoXTerm16()
-                byte xtermColor = BiosToXTerm16(biosColor);
-                return new TermColor(xtermColor, TermColorType.Indexed);
-
-            case TermCapColors.Indexed8:
-                // 8-color mode with BoldIsBright quirk
-                byte xtermColor8 = BiosToXTerm16(biosColor);
-                if ((_termcap.Quirks & TermQuirks.BoldIsBright) != 0 && xtermColor8 >= 8 && isForeground)
-                {
-                    // Use bold SGR for bright colors (8-15)
-                    style |= 0x01; // slBold
-                    return new TermColor((byte)(xtermColor8 - 8), TermColorType.Indexed);
-                }
-                // Regular 8-color (strip bright bit if present)
-                return new TermColor((byte)(xtermColor8 & 0x07), TermColorType.Indexed);
-
-            default:
-                return TermColor.Default;
-        }
-    }
-
-    /// <summary>
-    /// Converts an XTerm16 color (0-15) to RGB.
-    /// Uses standard VGA color palette in XTerm color order.
-    /// XTerm colors: bit0=Red, bit1=Green, bit2=Blue (not BIOS order!)
-    /// </summary>
-    private static TermColor ConvertXTermToRgb(byte xtermColor)
-    {
-        // Standard VGA color palette in XTerm16 order
-        // XTerm: 0=Black, 1=Red, 2=Green, 3=Yellow, 4=Blue, 5=Magenta, 6=Cyan, 7=White
-        // (and bright variants 8-15)
-        ReadOnlySpan<uint> palette = stackalloc uint[16]
-        {
-            0x000000, 0xAA0000, 0x00AA00, 0xAA5500, // Black, Red, Green, Brown/Yellow
-            0x0000AA, 0xAA00AA, 0x00AAAA, 0xAAAAAA, // Blue, Magenta, Cyan, Light Gray
-            0x555555, 0xFF5555, 0x55FF55, 0xFFFF55, // Dark Gray, Light Red, Light Green, Yellow
-            0x5555FF, 0xFF55FF, 0x55FFFF, 0xFFFFFF  // Light Blue, Light Magenta, Light Cyan, White
-        };
-
-        uint rgb = palette[xtermColor & 0x0F];
-        byte r = (byte)((rgb >> 16) & 0xFF);
-        byte g = (byte)((rgb >> 8) & 0xFF);
-        byte b = (byte)(rgb & 0xFF);
-
-        return new TermColor(r, g, b);
     }
 
     /// <summary>
@@ -345,98 +406,118 @@ internal sealed class AnsiScreenWriter
 
     /// <summary>
     /// Writes SGR (Select Graphic Rendition) sequences for the given attributes.
+    /// Matches upstream writeAttributes() in ansiwrit.cpp:276-298
     /// </summary>
     private void WriteAttributes(TermAttr newAttr, TermAttr lastAttr)
     {
         _buf.Reserve(128);
 
+        // Track position before CSI
+        int startPos = _buf.Size;
+
         // Start SGR sequence
-        _buf.Push("\x1b["u8);
-        bool needSeparator = false;
+        _buf.Push("\x1b["u8); // CSI
 
-        // Reset if colors changed significantly
-        bool needReset = !ColorsEqual(newAttr.Fg, lastAttr.Fg) ||
-                         !ColorsEqual(newAttr.Bg, lastAttr.Bg);
+        // Write style flags (matches upstream lines 281-286)
+        WriteFlag(newAttr, lastAttr, 0x01, "1", "22");  // Bold / Normal intensity
+        WriteFlag(newAttr, lastAttr, 0x02, "3", "23");  // Italic / Not italic
+        WriteFlag(newAttr, lastAttr, 0x04, "4", "24");  // Underline / Not underlined
+        WriteFlag(newAttr, lastAttr, 0x08, "5", "25");  // Blink / Not blinking
+        WriteFlag(newAttr, lastAttr, 0x10, "7", "27");  // Reverse / Not reversed
+        WriteFlag(newAttr, lastAttr, 0x20, "9", "29");  // Strike / Not struck
 
-        if (needReset)
-        {
-            _buf.Push((byte)'0'); // SGR 0: Reset
-            needSeparator = true;
-        }
-
-        // Foreground color
-        if (!ColorsEqual(newAttr.Fg, lastAttr.Fg) || needReset)
-        {
-            if (needSeparator) _buf.Push((byte)';');
+        // Write colors if changed (matches upstream lines 288-291)
+        if (!ColorsEqual(newAttr.Fg, lastAttr.Fg))
             WriteColor(newAttr.Fg, true);
-            needSeparator = true;
-        }
-
-        // Background color
-        if (!ColorsEqual(newAttr.Bg, lastAttr.Bg) || needReset)
-        {
-            if (needSeparator) _buf.Push((byte)';');
+        if (!ColorsEqual(newAttr.Bg, lastAttr.Bg))
             WriteColor(newAttr.Bg, false);
-            needSeparator = true;
-        }
 
-        // Style attributes
-        if (newAttr.Style != lastAttr.Style || needReset)
+        // CRITICAL: Remove empty SGR sequences (matches upstream lines 293-296)
+        if (_buf.LastByte == ';')
+            _buf.RemoveLast(1);  // Replace trailing ';' with...
+        else
+            _buf.RemoveLast(2);  // Back out CSI entirely (ESC[)
+
+        // Only write 'm' if we wrote something
+        if (_buf.Size > startPos)
+            _buf.Push((byte)'m');
+    }
+
+    /// <summary>
+    /// Writes a style flag with on/off toggle.
+    /// Matches upstream writeFlag() in ansiwrit.cpp:258-266
+    /// </summary>
+    private void WriteFlag(TermAttr attr, TermAttr lastAttr, ushort mask, string onCode, string offCode)
+    {
+        if ((attr.Style & mask) != (lastAttr.Style & mask))
         {
-            // Bold (SGR 1)
-            if ((newAttr.Style & 0x01) != 0)
-            {
-                if (needSeparator) _buf.Push((byte)';');
-                _buf.Push((byte)'1');
-                needSeparator = true;
-            }
-
-            // Underline (SGR 4)
-            if ((newAttr.Style & 0x02) != 0)
-            {
-                if (needSeparator) _buf.Push((byte)';');
-                _buf.Push((byte)'4');
-                needSeparator = true;
-            }
+            string code = (attr.Style & mask) != 0 ? onCode : offCode;
+            _buf.Push(Encoding.ASCII.GetBytes(code));
+            _buf.Push((byte)';');
         }
+    }
 
-        // End SGR sequence
-        _buf.Push((byte)'m');
+    /// <summary>
+    /// Splits SGR sequence for compatibility with problematic terminals.
+    /// Matches upstream splitSGR() in ansiwrit.cpp:300-307
+    /// </summary>
+    private void SplitSGR()
+    {
+        if (_buf.LastByte == ';')
+        {
+            _buf.RemoveLast(1);      // Remove trailing ';'
+            _buf.Push((byte)'m');    // End current SGR
+            _buf.Push("\x1b["u8);    // Start new SGR
+        }
     }
 
     /// <summary>
     /// Writes a color to the SGR sequence.
+    /// Matches upstream writeColor() in ansiwrit.cpp:309-354
     /// </summary>
     private void WriteColor(TermColor color, bool isForeground)
     {
-        int baseCode = isForeground ? 30 : 40; // 30-37 for FG, 40-47 for BG
-
+        // RGB and XTerm256 colors get a separate SGR sequence because some
+        // terminal emulators may otherwise have trouble processing them.
+        // Matches upstream comment at lines 311-312
         switch (color.Type)
         {
+            case TermColorType.Default:
+                // 39 for FG, 49 for BG
+                PushNumber((uint)(isForeground ? 39 : 49));
+                _buf.Push((byte)';');
+                break;
+
             case TermColorType.Indexed:
-                if (color.Idx < 8)
+                if (color.Idx >= 16)
                 {
-                    // Standard colors (30-37 or 40-47)
-                    PushNumber((uint)(baseCode + color.Idx));
-                }
-                else if (color.Idx < 16)
-                {
-                    // Bright colors (90-97 or 100-107)
-                    PushNumber((uint)(baseCode + 60 + (color.Idx - 8)));
-                }
-                else
-                {
-                    // Extended colors (256-color mode: 38;5;N or 48;5;N)
+                    // <38,48>;5;i; (matches upstream lines 319-326)
+                    SplitSGR();
                     PushNumber((uint)(isForeground ? 38 : 48));
                     _buf.Push((byte)';');
                     PushNumber(5);
                     _buf.Push((byte)';');
                     PushNumber(color.Idx);
+                    _buf.Push((byte)';');
+                    SplitSGR();
+                }
+                else if (color.Idx >= 8)
+                {
+                    // <90-97,100-107>; (matches upstream lines 330-332)
+                    PushNumber((uint)(color.Idx - 8 + (isForeground ? 90 : 100)));
+                    _buf.Push((byte)';');
+                }
+                else
+                {
+                    // <30-37,40-47>; (matches upstream lines 334-335)
+                    PushNumber((uint)(color.Idx + (isForeground ? 30 : 40)));
+                    _buf.Push((byte)';');
                 }
                 break;
 
             case TermColorType.RGB:
-                // True color (38;2;R;G;B or 48;2;R;G;B)
+                // <38,48>;2;r;g;b; (matches upstream lines 339-348)
+                SplitSGR();
                 PushNumber((uint)(isForeground ? 38 : 48));
                 _buf.Push((byte)';');
                 PushNumber(2);
@@ -446,11 +527,12 @@ internal sealed class AnsiScreenWriter
                 PushNumber(color.G);
                 _buf.Push((byte)';');
                 PushNumber(color.B);
+                _buf.Push((byte)';');
+                SplitSGR();
                 break;
 
-            case TermColorType.Default:
-                // Default color (39 or 49)
-                PushNumber((uint)(isForeground ? 39 : 49));
+            case TermColorType.NoColor:
+                // No output (matches upstream lines 350-351)
                 break;
         }
     }
