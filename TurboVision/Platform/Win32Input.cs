@@ -16,6 +16,13 @@ internal sealed class Win32Input : InputAdapter
     // Key code conversion tables (convert NT virtual scan codes to BIOS key codes)
     private const ushort kbShift = KeyConstants.kbRightShift | KeyConstants.kbLeftShift;
 
+    // Windows control key state mask (only these flags are reported by Windows)
+    // Matches upstream win32con.cpp:535-537 and 613-615
+    private const ushort Win32KeyStateMask =
+        kbShift | KeyConstants.kbCtrlShift | KeyConstants.kbAltShift |
+        KeyConstants.kbScrollState | KeyConstants.kbNumState |
+        KeyConstants.kbCapsState | KeyConstants.kbEnhanced;
+
     private static readonly ushort[] NormalCvt =
     [
         0,      0,      0,      0,      0,      0,      0,      0,
@@ -162,16 +169,13 @@ internal sealed class Win32Input : InputAdapter
         // Initialize keyCode with scanCode and charCode
         // Matches upstream lines 533-534
         byte scanCode = (byte)keyEvent.wVirtualScanCode;
-        byte charCode = (byte)keyEvent.UnicodeChar;  // Use low byte as ASCII char
+        byte charCode = keyEvent.AsciiChar;
         ushort keyCode = (ushort)((scanCode << 8) | charCode);
 
         // Convert Windows control key state to TV format
         // On Windows, dwControlKeyState flags match TV constants directly
         // Matches upstream lines 535-538
-        ushort controlKeyState = (ushort)(keyEvent.dwControlKeyState & (
-            kbShift | KeyConstants.kbCtrlShift | KeyConstants.kbAltShift |
-            KeyConstants.kbScrollState | KeyConstants.kbNumState | KeyConstants.kbCapsState | KeyConstants.kbEnhanced
-        ));
+        ushort controlKeyState = (ushort)(keyEvent.dwControlKeyState & Win32KeyStateMask);
 
         ev.KeyDown.ControlKeyState = controlKeyState;
 
@@ -249,6 +253,9 @@ internal sealed class Win32Input : InputAdapter
             if (tableKeyCode != 0)
             {
                 keyCode = tableKeyCode;
+                // Update charCode from the new keyCode (low byte), mirroring C++ union behavior
+                // where keyCode and charScan are aliased
+                charCode = (byte)(keyCode & 0xFF);
                 // Clear text if charCode is non-printable
                 if (charCode < ' ')
                 {
@@ -345,10 +352,7 @@ internal sealed class Win32Input : InputAdapter
         // Convert Windows control key state to TV format
         // On Windows, dwControlKeyState flags match TV constants directly
         // Matches upstream getWin32Mouse
-        ushort controlKeyState = (ushort)(mouseEvent.dwControlKeyState & (
-            KeyConstants.kbShift | KeyConstants.kbCtrlShift | KeyConstants.kbAltShift |
-            KeyConstants.kbScrollState | KeyConstants.kbNumState | KeyConstants.kbCapsState
-        ));
+        ushort controlKeyState = (ushort)(mouseEvent.dwControlKeyState & Win32KeyStateMask);
 
         ev.Mouse.ControlKeyState = controlKeyState;
 
