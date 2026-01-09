@@ -102,9 +102,10 @@ internal sealed class Win32Display : DisplayAdapter, IDisposable
 
             if (fontChanged)
             {
-                // Font changed - character width calculations need to be reset
+                // Character width depends on the font and the font size being used.
+                // Matches upstream win32con.cpp:337-344
+                WinWidth.Reset(_ansiScreenWriter == null);
                 _lastFontInfo = fontInfo;
-                // WinWidth would be reset here if font-dependent width detection was needed
             }
         }
 
