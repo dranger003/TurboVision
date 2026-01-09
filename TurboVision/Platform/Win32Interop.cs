@@ -68,6 +68,12 @@ internal static partial class Win32Interop
     public const uint FILE_SHARE_WRITE = 0x00000002;
     public const uint CONSOLE_TEXTMODE_BUFFER = 1;
 
+    // CreateFile constants (for CONIN$/CONOUT$ fallback)
+    public const uint OPEN_EXISTING = 3;
+
+    // C runtime locale constants
+    public const int LC_ALL = 0;
+
     // Handle constants
     public static readonly nint INVALID_HANDLE_VALUE = new nint(-1);
 
@@ -352,6 +358,36 @@ internal static partial class Win32Interop
     public static extern bool SetConsoleActiveScreenBuffer(nint hConsoleOutput);
 
     [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool SetConsoleWindowInfo(
+        nint hConsoleOutput,
+        bool bAbsolute,
+        ref SMALL_RECT lpConsoleWindow);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool AllocConsole();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool FreeConsole();
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern nint CreateFileW(
+        string lpFileName,
+        uint dwDesiredAccess,
+        uint dwShareMode,
+        nint lpSecurityAttributes,
+        uint dwCreationDisposition,
+        uint dwFlagsAndAttributes,
+        nint hTemplateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern bool ReadConsoleOutputCharacterW(
+        nint hConsoleOutput,
+        [Out] char[] lpCharacter,
+        uint nLength,
+        COORD dwReadCoord,
+        out uint lpNumberOfCharsRead);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool CloseHandle(nint hObject);
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
@@ -394,6 +430,18 @@ internal static partial class Win32Interop
 
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern nint GlobalFree(nint hMem);
+
+    // ========================================
+    // msvcrt.dll - C Runtime Functions
+    // ========================================
+
+    /// <summary>
+    /// Sets the C runtime locale.
+    /// Required after SetConsoleCP() to ensure C runtime functions use correct encoding.
+    /// Matches upstream win32con.cpp:124
+    /// </summary>
+    [DllImport("msvcrt.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint setlocale(int category, string locale);
 
     // ========================================
     // Delegates for Dynamic Resolution
