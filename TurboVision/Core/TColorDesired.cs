@@ -276,32 +276,32 @@ public static class ColorConversion
     }
 
     /// <summary>
-    /// Converts a BIOS color index to XTerm16 index.
+    /// Converts a BIOS color index to XTerm16 index by swapping Red and Blue bits.
+    /// Matches upstream BIOStoXTerm16() in colors.h:180-187
+    /// BIOS: bit0=Blue, bit1=Green, bit2=Red, bit3=Bright
+    /// XTerm: bit0=Red, bit1=Green, bit2=Blue, bit3=Bright
     /// </summary>
     public static byte BIOStoXTerm16(TColorBIOS c)
     {
-        // BIOS and XTerm16 differ in the order of RGB bits
-        // BIOS: IRGB (Intensity, Red, Green, Blue)
-        // XTerm: IBGR (Intensity, Blue, Green, Red)
         byte val = c;
-        byte r = (byte)((val >> 2) & 1);
-        byte b = (byte)(val & 1);
-        byte g = (byte)((val >> 1) & 1);
-        byte bright = (byte)((val >> 3) & 1);
-        return (byte)((bright << 3) | (r << 2) | (g << 1) | b);
+        byte b = (byte)(val & 0x1);        // Extract Blue bit (bit 0)
+        byte g = (byte)(val & 0x2);        // Extract Green bit (bit 1, unchanged)
+        byte r = (byte)(val & 0x4);        // Extract Red bit (bit 2)
+        byte bright = (byte)(val & 0x8);   // Extract Bright bit (bit 3, unchanged)
+
+        // Swap Red and Blue positions: XTerm = (b→bit2) | g | (r→bit0) | bright
+        return (byte)((b << 2) | g | (r >> 2) | bright);
     }
 
     /// <summary>
-    /// Converts an XTerm16 index to BIOS color.
+    /// Converts an XTerm16 index to BIOS color by swapping Red and Blue bits.
+    /// Matches upstream XTerm16toBIOS() in colors.h:257-260
+    /// This is the same operation as BIOStoXTerm16 (bidirectional swap).
     /// </summary>
     public static TColorBIOS XTerm16toBIOS(byte idx)
     {
-        // Reverse of BIOStoXTerm16
-        byte r = (byte)((idx >> 2) & 1);
-        byte b = (byte)(idx & 1);
-        byte g = (byte)((idx >> 1) & 1);
-        byte bright = (byte)((idx >> 3) & 1);
-        return new TColorBIOS((byte)((bright << 3) | (r << 2) | (g << 1) | b));
+        // Same operation as BIOStoXTerm16 - the swap is bidirectional
+        return new TColorBIOS(BIOStoXTerm16(idx));
     }
 
     /// <summary>
