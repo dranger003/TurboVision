@@ -191,6 +191,8 @@ internal static partial class Win32Interop
         public ushort wVirtualScanCode;
         [FieldOffset(10)]
         public char UnicodeChar;
+        [FieldOffset(10)]
+        public byte AsciiChar;
         [FieldOffset(12)]
         public uint dwControlKeyState;
     }
