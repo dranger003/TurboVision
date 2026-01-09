@@ -172,7 +172,15 @@ public class TEventViewer : TWindow
         {
             sb.Append("  .message = MessageEvent {\n");
             sb.Append($"    .command = {ev.Message.Command},\n");
-            sb.Append($"    .infoPtr = {ev.Message.InfoPtr}\n");
+            // Format infoPtr as hex pointer (16 digits for 64-bit), matching upstream evntview.cpp:200
+            long ptrValue = ev.Message.InfoPtr switch
+            {
+                nint n => n,
+                int i => i,
+                null => 0,
+                _ => 0
+            };
+            sb.Append($"    .infoPtr = {ptrValue:X16}\n");
             sb.Append("  }\n");
         }
 
