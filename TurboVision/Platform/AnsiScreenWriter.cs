@@ -275,62 +275,77 @@ internal sealed class AnsiScreenWriter
     /// Converts color to Indexed16 mode (with downconversion from 256 or RGB).
     /// Matches upstream convertIndexed16() in ansiwrit.cpp:400-421
     /// </summary>
-    private static ColorConvResult ConvertIndexed16(byte biosColor, bool isFg)
+    private static ColorConvResult ConvertIndexed16(TColorDesired color, bool isFg)
     {
-        // BIOS colors need bit swap
-        byte idx = ColorConversion.BIOStoXTerm16(biosColor);
-        return new ColorConvResult(new TermColor(idx, TermColorType.Indexed));
+        if (color.IsBIOS)
+        {
+            byte idx = ColorConversion.BIOStoXTerm16(color.AsBIOS);
+            return new ColorConvResult(new TermColor(idx, TermColorType.Indexed));
+        }
+        else if (color.IsXTerm)
+        {
+            byte idx = color.AsXTerm;
+            if (idx >= 16)
+                idx = ColorConversion.XTerm256toXTerm16(idx);
+            return new ColorConvResult(new TermColor(idx, TermColorType.Indexed));
+        }
+        else if (color.IsRGB)
+        {
+            var rgb = color.AsRGB;
+            byte idx = ColorConversion.RGBtoXTerm16(rgb.R, rgb.G, rgb.B);
+            return new ColorConvResult(new TermColor(idx, TermColorType.Indexed));
+        }
+        return new ColorConvResult(TermColor.Default);
     }
 
     /// <summary>
     /// Converts color to Indexed256 mode (with conversion from RGB).
     /// Matches upstream convertIndexed256() in ansiwrit.cpp:423-437
     /// </summary>
-    private static ColorConvResult ConvertIndexed256(byte biosColor, bool isFg)
+    private ColorConvResult ConvertIndexed256(TColorDesired color, bool isFg)
     {
-        // For BIOS colors, convert through 16-color
-        return ConvertIndexed16(biosColor, isFg);
+        if (color.IsXTerm)
+        {
+            byte idx = color.AsXTerm;
+            return new ColorConvResult(new TermColor(idx, TermColorType.Indexed));
+        }
+        else if (color.IsRGB)
+        {
+            var rgb = color.AsRGB;
+            byte idx = ColorConversion.RGBtoXTerm256(rgb.R, rgb.G, rgb.B);
+            return new ColorConvResult(new TermColor(idx, TermColorType.Indexed));
+        }
+        return ConvertIndexed16(color, isFg);
     }
 
     /// <summary>
     /// Converts color to Direct (24-bit RGB) mode.
     /// Matches upstream convertDirect() in ansiwrit.cpp:439-448
     /// </summary>
-    private static ColorConvResult ConvertDirect(byte biosColor, bool isFg)
+    private ColorConvResult ConvertDirect(TColorDesired color, bool isFg)
     {
-        // Convert BIOS color to XTerm16, then to RGB using palette
-        byte xtermColor = ColorConversion.BIOStoXTerm16(biosColor);
-
-        // Standard VGA color palette in XTerm16 order
-        ReadOnlySpan<uint> palette = stackalloc uint[16]
+        if (color.IsRGB)
         {
-            0x000000, 0xAA0000, 0x00AA00, 0xAA5500, // Black, Red, Green, Brown/Yellow
-            0x0000AA, 0xAA00AA, 0x00AAAA, 0xAAAAAA, // Blue, Magenta, Cyan, Light Gray
-            0x555555, 0xFF5555, 0x55FF55, 0xFFFF55, // Dark Gray, Light Red, Light Green, Yellow
-            0x5555FF, 0xFF55FF, 0x55FFFF, 0xFFFFFF  // Light Blue, Light Magenta, Light Cyan, White
-        };
-
-        uint rgb = palette[xtermColor & 0x0F];
-        byte r = (byte)((rgb >> 16) & 0xFF);
-        byte g = (byte)((rgb >> 8) & 0xFF);
-        byte b = (byte)(rgb & 0xFF);
-
-        return new ColorConvResult(new TermColor(r, g, b));
+            var rgb = color.AsRGB;
+            return new ColorConvResult(new TermColor(rgb.R, rgb.G, rgb.B));
+        }
+        return ConvertIndexed256(color, isFg);
     }
 
     /// <summary>
-    /// Converts BIOS color based on terminal capabilities.
+    /// Converts TColorDesired based on terminal capabilities.
     /// Dispatcher for the 5 color conversion functions above.
+    /// Matches upstream convertColor() dispatch in ansiwrit.cpp:236-243
     /// </summary>
-    private ColorConvResult ConvertColor(byte biosColor, bool isFg)
+    private ColorConvResult ConvertColor(TColorDesired color, bool isFg)
     {
         return _termcap.Colors switch
         {
-            TermCapColors.NoColor => ConvertNoColor(biosColor, isFg),
-            TermCapColors.Indexed8 => ConvertIndexed8(biosColor, isFg),
-            TermCapColors.Indexed16 => ConvertIndexed16(biosColor, isFg),
-            TermCapColors.Indexed256 => ConvertIndexed256(biosColor, isFg),
-            TermCapColors.Direct => ConvertDirect(biosColor, isFg),
+            TermCapColors.NoColor => ConvertNoColor(color.ToBIOS(isFg), isFg),
+            TermCapColors.Indexed8 => ConvertIndexed8(color.ToBIOS(isFg), isFg),
+            TermCapColors.Indexed16 => ConvertIndexed16(color, isFg),
+            TermCapColors.Indexed256 => ConvertIndexed256(color, isFg),
+            TermCapColors.Direct => ConvertDirect(color, isFg),
             _ => new ColorConvResult(TermColor.Default)
         };
     }
@@ -350,14 +365,14 @@ internal sealed class AnsiScreenWriter
         ushort style = attr.Style;
 
         // Convert foreground - matches upstream convertColor(getFore(c), ...)
-        byte fgBios = attr.ForegroundColor.ToBIOS(true);
-        var fgConv = ConvertColor(fgBios, true);
+        // CRITICAL: Pass TColorDesired directly, not BIOS-converted version
+        var fgConv = ConvertColor(attr.ForegroundColor, true);
         newAttr.Fg = fgConv.Color;
         style |= fgConv.ExtraStyle;
 
         // Convert background - matches upstream convertColor(getBack(c), ...)
-        byte bgBios = attr.BackgroundColor.ToBIOS(false);
-        var bgConv = ConvertColor(bgBios, false);
+        // CRITICAL: Pass TColorDesired directly, not BIOS-converted version
+        var bgConv = ConvertColor(attr.BackgroundColor, false);
         newAttr.Bg = bgConv.Color;
         style |= bgConv.ExtraStyle;
 
