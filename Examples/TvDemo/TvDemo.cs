@@ -156,6 +156,12 @@ public class TVDemo : TApplication
         }
     }
 
+    public override void GetEvent(ref TEvent ev)
+    {
+        base.GetEvent(ref ev);
+        PrintEvent(ref ev);
+    }
+
     public override void Idle()
     {
         base.Idle();
@@ -236,11 +242,21 @@ public class TVDemo : TApplication
     private void EventViewer()
     {
         var viewer = (TEventViewer?)Message(DeskTop, EventConstants.evBroadcast,
-            EventViewCommands.cmFndEventView, 0);
+            TvCmds.cmFndEventView, 0);
         if (viewer != null)
             viewer.Toggle();
         else if (DeskTop != null)
             DeskTop.Insert(new TEventViewer(DeskTop.GetExtent(), 0x0F00));
+    }
+
+    private void PrintEvent(ref TEvent ev)
+    {
+        var viewer = (TEventViewer?)Message(DeskTop, EventConstants.evBroadcast,
+            TvCmds.cmFndEventView, 0);
+        if (viewer != null)
+        {
+            viewer.Print(ref ev);
+        }
     }
 
     private void ChBackground()
