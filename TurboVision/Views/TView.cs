@@ -945,13 +945,16 @@ public class TView : TObject, IStreamable
     // Focus and selection
     public void Select()
     {
-        if ((Options & OptionFlags.ofTopSelect) != 0)
+        if ((Options & OptionFlags.ofSelectable) != 0 && Owner != null)
         {
-            MakeFirst();
-        }
-        else if (Owner != null)
-        {
-            Owner.SetCurrent(this, SelectMode.normalSelect);
+            if ((Options & OptionFlags.ofTopSelect) != 0)
+            {
+                MakeFirst();
+            }
+            else
+            {
+                Owner.SetCurrent(this, SelectMode.normalSelect);
+            }
         }
     }
 
