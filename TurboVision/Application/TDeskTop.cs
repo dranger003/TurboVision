@@ -28,9 +28,7 @@ public class TDeskTop : TGroup
     public TDeskTop(TRect bounds) : base(bounds)
     {
         GrowMode = GrowFlags.gfGrowHiX | GrowFlags.gfGrowHiY;
-
-        // Disable buffering - draw directly to screen
-        Options &= unchecked((ushort)~OptionFlags.ofBuffered);
+        TileColumnsFirst = false;
 
         Background = InitBackground(new TRect(0, 0, bounds.B.X - bounds.A.X, bounds.B.Y - bounds.A.Y));
         if (Background != null)
