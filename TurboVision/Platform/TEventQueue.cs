@@ -20,6 +20,9 @@ public static class TEventQueue
     private static int _autoDelay;
     private static bool _pendingMouseUp;
 
+    // INSERT key state tracking - matches upstream hardware.cpp insertState
+    private static bool _insertState;
+
     // Configuration
     public static ushort DoubleDelay { get; set; } = 8;  // Ticks for double-click detection
     public static ushort RepeatDelay { get; set; } = 8;  // Ticks before first auto repeat
@@ -206,6 +209,7 @@ public static class TEventQueue
 
     /// <summary>
     /// Gets the next keyboard event.
+    /// Matches upstream THardwareInfo::getKeyEvent() in hardware.cpp:80-95
     /// </summary>
     public static void GetKeyEvent(ref TEvent ev)
     {
@@ -216,6 +220,14 @@ public static class TEventQueue
         {
             ev = _pendingEvent;
             _hasPendingEvent = false;
+            // Track INSERT state - matches upstream hardware.cpp:87-90
+            if ((ev.What & EventConstants.evKeyboard) != 0)
+            {
+                if (ev.KeyDown.KeyCode == KeyConstants.kbIns)
+                    _insertState = !_insertState;
+                if (_insertState)
+                    ev.KeyDown.ControlKeyState |= KeyConstants.kbInsState;
+            }
             return;
         }
 
@@ -225,6 +237,14 @@ public static class TEventQueue
                 (sourceEvent.What & EventConstants.evCommand) != 0)
             {
                 ev = sourceEvent;
+                // Track INSERT state - matches upstream hardware.cpp:87-90
+                if ((ev.What & EventConstants.evKeyboard) != 0)
+                {
+                    if (ev.KeyDown.KeyCode == KeyConstants.kbIns)
+                        _insertState = !_insertState;
+                    if (_insertState)
+                        ev.KeyDown.ControlKeyState |= KeyConstants.kbInsState;
+                }
             }
             else if (sourceEvent.What != EventConstants.evNothing)
             {
