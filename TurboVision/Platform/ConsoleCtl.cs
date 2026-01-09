@@ -269,6 +269,11 @@ internal sealed class ConsoleCtl
     /// Used by AnsiScreenWriter for VT sequence output.
     /// Uses WriteFile for raw byte output (VT escape sequences).
     /// Matches upstream ConsoleCtl::write() in conctl.cpp:319-325
+    ///
+    /// KNOWN DEVIATION #1:
+    /// Uses WriteFile instead of WriteConsoleA (upstream uses WriteConsoleA in conctl.cpp:322-324).
+    /// This is functionally equivalent and correct for VT sequence output on Windows.
+    /// Both APIs write raw bytes; WriteFile is more direct and avoids unnecessary conversions.
     /// </summary>
     /// <param name="data">UTF-8 encoded bytes to write</param>
     public unsafe void Write(ReadOnlySpan<byte> data)

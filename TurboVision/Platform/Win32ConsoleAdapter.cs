@@ -146,6 +146,12 @@ public sealed class Win32ConsoleAdapter : ConsoleAdapter, IScreenDriver, IEventS
     /// <summary>
     /// Requests text from the system clipboard.
     /// Matches upstream Win32ConsoleAdapter::requestClipboardText() in win32con.cpp:230-253
+    ///
+    /// KNOWN DEVIATION #2 & #3 (.NET Idiomatic Patterns):
+    /// - Uses Marshal.PtrToStringUni() instead of manual wide-char to UTF-8 conversion
+    /// - Uses .NET Encoding.UTF8 throughout instead of Win32 MultiByteToWideChar
+    /// These are functionally equivalent and follow C# best practices.
+    /// Marshal.PtrToStringUni provides automatic null-termination handling and memory safety.
     /// </summary>
     public override bool RequestClipboardText(Action<string> accept)
     {

@@ -184,6 +184,24 @@ internal struct TermCap
             termcap.Colors = TermCapColors.Indexed8;
             // For 8-color terminals, use bold for bright colors
             termcap.Quirks |= TermQuirks.BoldIsBright;
+
+            // PLATFORM NOTE: Linux Console Quirks
+            // Upstream (ansiwrit.cpp:34-35) sets additional quirks for Linux console:
+            //   qfBlinkIsBright | qfNoItalic | qfNoUnderline
+            // These are NOT set here because:
+            // 1. This is a Windows-specific implementation (Win32ConsoleAdapter)
+            // 2. Windows console properly supports blink, italic, and underline
+            // 3. The Linux quirks are guarded by #ifdef __linux__ in upstream
+            // If this code is ever ported to Linux console, these quirks should be added.
+
+            // Upstream: ansiwrit.cpp:40-43
+            // If TERM=xterm, assume 16-color support even if display reports 8 colors
+            // Many terminals disguising themselves as 'xterm' but support 16 colors
+            string? term = Environment.GetEnvironmentVariable("TERM");
+            if (term == "xterm")
+            {
+                termcap.Colors = TermCapColors.Indexed16;
+            }
         }
         else
         {
