@@ -93,22 +93,28 @@ public class TProgram : TGroup
 
         var r = GetExtent();
 
+        // Upstream: tprogram.cpp lines 67-80
+        // IMPORTANT: Insertion order must match upstream to ensure correct view hierarchy
+
+        // 1. DeskTop (inserted first)
+        DeskTop = InitDeskTop(new TRect(r.A.X, r.A.Y + 1, r.B.X, r.B.Y - 1));
+        if (DeskTop != null)
+        {
+            Insert(DeskTop);
+        }
+
+        // 2. StatusLine (inserted second)
         StatusLine = InitStatusLine(new TRect(r.A.X, r.B.Y - 1, r.B.X, r.B.Y));
         if (StatusLine != null)
         {
             Insert(StatusLine);
         }
 
+        // 3. MenuBar (inserted last)
         MenuBar = InitMenuBar(new TRect(r.A.X, r.A.Y, r.B.X, r.A.Y + 1));
         if (MenuBar != null)
         {
             Insert(MenuBar);
-        }
-
-        DeskTop = InitDeskTop(new TRect(r.A.X, r.A.Y + 1, r.B.X, r.B.Y - 1));
-        if (DeskTop != null)
-        {
-            Insert(DeskTop);
         }
     }
 
