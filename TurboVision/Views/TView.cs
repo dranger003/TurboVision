@@ -170,10 +170,13 @@ public class TView : TObject, IStreamable
     // Upstream: uchar _NEAR TView::errorAttr (line 467, tview.cpp line 37)
     public static byte ErrorAttr { get; set; } = 0xCF;
 
-    // Upstream: Global variables in tview.cpp (lines 34-35)
+    // Upstream: Global variables in tview.cpp (lines 34-35, 41)
     // NOTE: These are global in C++ but static members in C# for better encapsulation.
     public static TPoint ShadowSize { get; set; } = new TPoint(2, 1);
     public static byte ShadowAttr { get; set; } = 0x08;
+
+    // Upstream: extern TView *TheTopView (tview.cpp line 41)
+    public static TView? TheTopView { get; set; }
 
     // ============================================================================
     // SECTION 5: CONSTRUCTORS
@@ -389,7 +392,9 @@ public class TView : TObject, IStreamable
     // Upstream: virtual void draw() (tview.cpp lines 360-366)
     public virtual void Draw()
     {
-        // Override in derived classes
+        var b = new TDrawBuffer();
+        b.MoveChar(0, ' ', MapColor(1), Size.X);
+        WriteLine(0, 0, Size.X, Size.Y, b);
     }
 
     // Upstream: virtual ushort getHelpCtx() (tview.cpp lines 524-529)
@@ -446,9 +451,12 @@ public class TView : TObject, IStreamable
     {
         if (ev.What == EventConstants.evMouseDown)
         {
-            if (!GetState(StateFlags.sfSelected) && (Options & OptionFlags.ofSelectable) != 0)
+            if (!GetState(StateFlags.sfSelected | StateFlags.sfDisabled) && (Options & OptionFlags.ofSelectable) != 0)
             {
-                Select();
+                if (!Focus() || (Options & OptionFlags.ofFirstClick) == 0)
+                {
+                    ClearEvent(ref ev);
+                }
             }
         }
     }
@@ -635,7 +643,7 @@ public class TView : TObject, IStreamable
     // Upstream: Boolean containsMouse(TEvent& event) noexcept (tview.cpp lines 895-900)
     public bool ContainsMouse(TEvent ev)
     {
-        return (ev.What & EventConstants.evMouse) != 0 && MouseInView(ev.Mouse.Where);
+        return (State & StateFlags.sfVisible) != 0 && MouseInView(ev.Mouse.Where);
     }
 
     // Upstream: void locate(TRect& bounds) (tview.cpp lines 583-603)
@@ -712,6 +720,7 @@ public class TView : TObject, IStreamable
         if (Exposed())
         {
             Draw();
+            DrawCursor();
         }
     }
 
@@ -825,8 +834,10 @@ public class TView : TObject, IStreamable
     // Upstream: void drawCursor() noexcept (tview.cpp lines 368-372)
     public void DrawCursor()
     {
-        // DrawCursor delegates to ResetCursor which handles all cursor positioning
-        ResetCursor();
+        if ((State & StateFlags.sfFocused) != 0)
+        {
+            ResetCursor();
+        }
     }
 
     // Upstream: void clearEvent(TEvent& event) noexcept (tview.cpp lines 168-172)
@@ -956,11 +967,19 @@ public class TView : TObject, IStreamable
     // Upstream: TView *TopView() noexcept (tview.cpp lines 877-888)
     public TView? TopView()
     {
-        if (Owner != null && !GetState(StateFlags.sfModal))
+        if (TheTopView != null)
         {
-            return Owner.TopView();
+            return TheTopView;
         }
-        return this;
+        else
+        {
+            TView? p = this;
+            while (p != null && (p.State & StateFlags.sfModal) == 0)
+            {
+                p = p.Owner;
+            }
+            return p;
+        }
     }
 
     // Upstream: void makeFirst() (tview.cpp lines 605-608)
