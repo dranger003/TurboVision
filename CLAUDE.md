@@ -49,3 +49,27 @@ dotnet run --project Examples/Hello/Hello.csproj
 
 ### Constraints
 - No external dependencies
+
+### Lines of Code Report
+
+**Overview**
+
+- Total Lines: ~29,410
+- Total Files: ~154
+- Average per File: ~191 lines
+- Largest File: TEditor.cs (~1,689 lines)
+- Smallest File: TSItem.cs (~16 lines)
+
+**Lines by Module (approx)**
+
+Dialogs        ~6,656 lines  (~35 files)  - ~22.6%
+Views          ~5,973 lines  (~16 files)  - ~20.3%
+Platform       ~3,391 lines  (~20 files)  - ~11.5%
+Editors        ~2,910 lines   (~8 files)  -  ~9.9%
+Core           ~2,279 lines  (~16 files)  -  ~7.7%
+Collections    ~2,097 lines   (~9 files)  -  ~7.1%
+Menus          ~1,718 lines  (~10 files)  -  ~5.8%
+Application    ~1,200 lines   (~5 files)  -  ~4.1%
+Help           ~1,087 lines   (~8 files)  -  ~3.7%
+Colors           ~988 lines   (~9 files)  -  ~3.4%
+Streaming      ~1,043 lines  (~12 files)  -  ~3.5%
