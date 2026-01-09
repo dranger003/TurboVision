@@ -233,19 +233,31 @@ public sealed class Win32ConsoleAdapter : ConsoleAdapter, IScreenDriver, IEventS
 
     /// <summary>
     /// Initializes console encoding (UTF-8 for modern, OEM for legacy).
-    /// Matches upstream Win32ConsoleAdapter::initEncoding() in win32con.cpp:108-117
+    /// Matches upstream Win32ConsoleAdapter::initEncoding() in win32con.cpp:105-125
     /// </summary>
     private static void InitEncoding(bool isLegacyConsole, out uint cpInput, out uint cpOutput)
     {
         cpInput = GetConsoleCP();
         cpOutput = GetConsoleOutputCP();
 
+        // We would like to set all console codepages to UTF-8, but the legacy
+        // console with bitmap font is unable to display UTF-8 text properly.
+        // However, when using the OEM codepage (which is usually the one supported
+        // by the default bitmap font) in the legacy console, unsupported characters
+        // may be replaced automatically with a similar one (e.g. '╪' gets replaced
+        // with '╬' when the OEM codepage is 850, which doesn't support '╪').
+        // If the legacy console is used with a non-bitmap font (such as Lucida
+        // Console), then the output codepage does not make a difference.
         SetConsoleCP(CP_UTF8);
 
         if (isLegacyConsole)
             SetConsoleOutputCP(GetOEMCP()); // Use OEM code page for bitmap fonts
         else
             SetConsoleOutputCP(CP_UTF8); // Use UTF-8 for modern consoles
+
+        // This only affects the C runtime functions. It has to be invoked every
+        // time SetConsoleCP() gets called.
+        setlocale(LC_ALL, ".utf8");
     }
 
     /// <summary>
