@@ -362,6 +362,14 @@ public class TGroup : TView
                 {
                     EventError(ref ev);
                 }
+
+                // INTERIM FIX: Reset cursor after each event to ensure it's positioned correctly.
+                // This compensates for lack of DisplayBuffer system - in upstream, cursor positioning
+                // happens after all drawing during DisplayBuffer::flushScreen(). In our C# port,
+                // drawing happens immediately, so we must explicitly reset cursor after each event
+                // to prevent it from being left at the last drawn position (e.g., end of HeapView).
+                // TODO: Implement proper DisplayBuffer system (see dispbuff.cpp) for permanent fix.
+                ResetCursor();
             } while (EndState == 0);
         } while (!Valid(EndState));
 
@@ -838,7 +846,7 @@ public class TGroup : TView
     public void ResetCurrent()
     {
         SetCurrent(FirstMatch(StateFlags.sfVisible, OptionFlags.ofSelectable), SelectMode.normalSelect);
-    }
+        }
 
     /// <summary>
     /// Reset cursor to current view.
@@ -846,7 +854,14 @@ public class TGroup : TView
     /// </summary>
     public override void ResetCursor()
     {
-        Current?.ResetCursor();
+        if (Current != null)
+        {
+            Current.ResetCursor();
+        }
+        else
+        {
+            base.ResetCursor();
+        }
     }
 
     /// <summary>
