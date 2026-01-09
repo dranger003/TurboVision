@@ -5,10 +5,17 @@
 		<File Path="README.md" />
 	</Folder>
 	<Folder Name="/Solution Items/Documentation/">
+		<File Path="Documentation/ANSISCREENWRITER_GAP_REPORT.md" />
 		<File Path="Documentation/BCL_MAPPING.md" />
 		<File Path="Documentation/CODING_STYLE.md" />
 		<File Path="Documentation/IMPLEMENTATION_PHASES.md" />
 		<File Path="Documentation/IMPLEMENTATION_STATUS.md" />
+		<File Path="Documentation/PLATFORM_PORTING_NOTES.md" />
+		<File Path="Documentation/SERIALIZATION_DESIGN.md" />
+		<File Path="Documentation/WIN32_API_ERROR_AUDIT.md" />
+		<File Path="Documentation/WIN32_CONSOLE_COMPARISON.md" />
+		<File Path="Documentation/WIN32_CONSOLE_GAP_PLAN.md" />
+		<File Path="Documentation/WIN32_CONSOLE_SUMMARY.md" />
 	</Folder>
 	<Folder Name="/Examples/">
 		<Project Path="Examples/Hello/Hello.csproj" />
